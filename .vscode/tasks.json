@@ -1,0 +1,10 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {"label": "cod3: environment", "type": "shell", "command": "${workspaceFolder}/tools/Check-Environment.ps1", "problemMatcher": []},
+    {"label": "cod3: tests", "type": "shell", "command": "${workspaceFolder}/tools/Build.ps1", "args": ["-Stage", "Tests"], "problemMatcher": []},
+    {"label": "cod3: analyze", "type": "shell", "command": "${workspaceFolder}/tools/Build.ps1", "args": ["-Stage", "Analyze"], "problemMatcher": []},
+    {"label": "cod3: strict codegen", "type": "shell", "command": "${workspaceFolder}/tools/Build.ps1", "args": ["-Stage", "Codegen"], "problemMatcher": []},
+    {"label": "cod3: build", "type": "shell", "command": "${workspaceFolder}/tools/Build.ps1", "args": ["-Stage", "Build"], "group": {"kind": "build", "isDefault": true}, "problemMatcher": ["$gcc"]}
+  ]
+}
