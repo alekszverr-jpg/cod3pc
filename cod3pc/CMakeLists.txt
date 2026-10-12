@@ -14,6 +14,9 @@ include(generated/rexglue.cmake)
 set(COD3PC_SOURCES
     src/main.cpp
     src/runtime/entry_trace.cpp
+    src/runtime/crash_trace.cpp
+    src/runtime/fiber_task.cpp
+    src/runtime/script_coroutines.cpp
 )
 
 if(WIN32)
@@ -23,3 +26,21 @@ else()
 endif()
 
 rexglue_setup_target(cod3pc GPU_PLUGINS xenos)
+if(TARGET cod3pc_saint_lo)
+    target_sources(cod3pc_saint_lo PRIVATE src/runtime/level_trace.cpp)
+endif()
+if(WIN32)
+    target_link_libraries(cod3pc PRIVATE dbghelp)
+endif()
+
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(cod3_jump_test ../tests/guest_jump_test.cpp)
+    target_include_directories(cod3_jump_test PRIVATE generated/default)
+    target_link_libraries(cod3_jump_test PRIVATE rex::runtime)
+    rexglue_apply_target_settings(cod3_jump_test)
+    add_test(NAME guest_nonlocal_jump COMMAND cod3_jump_test)
+    add_executable(cod3_fiber_test ../tests/fiber_task_test.cpp src/runtime/fiber_task.cpp)
+    rexglue_apply_target_settings(cod3_fiber_test)
+    add_test(NAME script_fiber_continuations COMMAND cod3_fiber_test)
+endif()

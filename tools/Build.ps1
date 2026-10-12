@@ -1,4 +1,5 @@
-param([ValidateSet('SDK','Codegen','Diagnostic','Build','Analyze','Tests')][string]$Stage = 'Build')
+param([ValidateSet('SDK','Codegen','Diagnostic','Build','Analyze','Tests')][string]$Stage = 'Build',
+    [ValidateSet('Debug','RelWithDebInfo','Release')][string]$Configuration = 'RelWithDebInfo')
 . "$PSScriptRoot/Enter-Toolchain.ps1"
 New-Item -ItemType Directory -Force "$ProjectRoot/logs" | Out-Null
 function Invoke-Logged([string]$Exe, [string[]]$Arguments, [string]$Log) {
@@ -13,9 +14,21 @@ try {
         if (!(Test-Path -LiteralPath $xex) -or (Get-FileHash -LiteralPath $xex -Algorithm SHA256).Hash -ne $expected) {
             throw 'default.xex differs from reviewed SHA-256; reanalyze before using function overrides.'
         }
+        $levelXex = Join-Path $ProjectRoot 'assets/game/sp/saint_lo/saint_lo.dll'
+        $levelHash = '49E38A116B8F3C5E81C5206FD461496A6DA518CF9427843B38F2CAD33910EF2B'
+        if (!(Test-Path -LiteralPath $levelXex) -or (Get-FileHash -LiteralPath $levelXex -Algorithm SHA256).Hash -ne $levelHash) {
+            throw 'saint_lo.dll differs from reviewed SHA-256; reanalyze the level.'
+        }
     }
     switch ($Stage) {
-        'Tests' { Invoke-Logged $Python @('-m','unittest','discover','-s','tests','-v') 'tests.log' }
+        'Tests' {
+            Invoke-Logged $Python @('-m','unittest','discover','-s','tests','-v') 'tests.log'
+            $nativeBuild = 'cod3pc/out/build/win-amd64-' + $Configuration.ToLowerInvariant()
+            if (Test-Path "$nativeBuild/CMakeCache.txt") {
+                Invoke-Logged $CMake @('--build',$nativeBuild,'--target','cod3_jump_test','cod3_fiber_test','--parallel','4') 'jump-test-build.log'
+                Invoke-Logged (Join-Path (Split-Path $CMake) 'ctest.exe') @('--test-dir',$nativeBuild,'--output-on-failure','-R','guest_nonlocal_jump|script_fiber_continuations') 'jump-tests.log'
+            }
+        }
         'Analyze' { Invoke-Logged $Python @('tools/inspect_game.py','assets/game') 'analysis.log' }
         'SDK' {
             Invoke-Logged $Python @('tools/materialize_mspack.py') 'sdk-symlinks.log'
@@ -40,8 +53,9 @@ try {
             Push-Location cod3pc
             try {
                 Invoke-Logged $Rexglue @('codegen','cod3pc_manifest.toml','--ignore-stamp') 'build-validation.log'
-                Invoke-Logged $CMake @('--preset','win-amd64-debug',"-DCMAKE_PREFIX_PATH=$SdkPrefix") 'app-configure.log'
-                Invoke-Logged $CMake @('--build','--preset','win-amd64-debug','--parallel','4') 'app-build.log'
+                $preset = 'win-amd64-' + $Configuration.ToLowerInvariant()
+                Invoke-Logged $CMake @('--preset',$preset,"-DCMAKE_PREFIX_PATH=$SdkPrefix") 'app-configure.log'
+                Invoke-Logged $CMake @('--build','--preset',$preset,'--parallel','4') 'app-build.log'
             } finally { Pop-Location }
         }
     }

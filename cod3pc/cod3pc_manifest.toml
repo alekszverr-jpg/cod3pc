@@ -8,4 +8,10 @@ game_root = "../assets/game"
 [entrypoint]
 file_path = "../assets/game/default.xex"
 out_directory_path = "generated/default"
-includes = ["configs/functions.toml"]
+includes = ["configs/functions.toml", "configs/ghidra_thunks.toml", "configs/script_coroutines.toml"]
+
+[[modules]]
+file_path = "../assets/game/sp/saint_lo/saint_lo.dll"
+guest_path = "sp/saint_lo/saint_lo.dll"
+out_directory_path = "generated/saint_lo"
+includes = ["configs/saint_lo_yields.toml", "configs/saint_lo_functions.toml"]

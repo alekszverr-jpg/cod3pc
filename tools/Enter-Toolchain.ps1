@@ -30,3 +30,8 @@ if ($VsRoot) {
 if (Test-Path -LiteralPath 'C:/Program Files/LLVM/bin/clang++.exe') {
     $env:PATH = "C:/Program Files/LLVM/bin;$env:PATH"
 }
+$jdkRoot = 'C:/Program Files/Eclipse Adoptium'
+if (Test-Path -LiteralPath $jdkRoot) {
+    $jdk = Get-ChildItem -LiteralPath $jdkRoot -Directory | Where-Object Name -Like 'jdk-21*' | Select-Object -First 1
+    if ($jdk) { $env:JAVA_HOME = $jdk.FullName; $env:PATH = "$($jdk.FullName)/bin;$env:PATH" }
+}

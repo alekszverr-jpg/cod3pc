@@ -3,6 +3,10 @@
 # 822D0498: 4BFFFC80 = b 822D0118; 822D049C is zero padding.
 # 822D2140: 38630004 = addi r3,r3,4; 822D2144: 4BFF98E4 = b 822CBA28.
 # Both are tail-call thunks; the original branches and register semantics remain.
+# Ghidra 2026-10-12: stores/restores FPR14-31, GPR13-31, CR/LR/SP in jmp_buf.
+# Entry 82351CC0 includes the original optional hook check before the stores.
+setjmp_address = 0x82351CC0
+longjmp_address = 0x8234EEC0
 [functions]
 "0x822D0498" = { size = 4 }
 "0x822D2140" = { size = 8 }
@@ -13,3 +17,5 @@
 # Runtime target; Ghidra: li r11,6; li r10,0; li r3,0;
 # stb r11,0(r4); sth r10,2(r4); blr. Exactly six instructions.
 "0x822CAB78" = { size = 24 }
+# Runtime target; Ghidra confirmed addi r3,r3,4; b 0x8216D600.
+"0x8216D720" = { size = 8 }

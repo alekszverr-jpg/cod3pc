@@ -1,0 +1,36 @@
+# default.xex SHA256 2944eec7d1231ad6798b5f9f8adf8855f5e489296b22eab45b27a577cee23692.
+# Ghidra InspectCod3, 2026-10-12: script start bl, manual continuation restore,
+# and two script suspend tails calling longjmp. Preserve original bookkeeping.
+[[midasm_hook]]
+address = 0x824A62A4
+name = "Cod3BeginScript"
+jump_address_on_true = 0x824A62A8
+jump_address_on_false = 0x824A6484
+
+[[midasm_hook]]
+address = 0x824A63A4
+name = "Cod3ResumeScript"
+jump_address_on_true = 0x824A62A8
+jump_address_on_false = 0x824A6484
+
+[[midasm_hook]]
+address = 0x824A5400
+name = "Cod3SuspendScript"
+return = true
+
+[[midasm_hook]]
+address = 0x824A5784
+name = "Cod3SuspendScript"
+return = true
+
+# Timed wait: builds a delay object from f1 and queues it on the script thread.
+[[midasm_hook]]
+address = 0x824A56B4
+name = "Cod3SuspendScript"
+return = true
+
+# Event wait: original dispatcher registers the event before suspending.
+[[midasm_hook]]
+address = 0x824AB824
+name = "Cod3SuspendScript"
+return = true

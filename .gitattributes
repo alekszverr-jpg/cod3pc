@@ -1,0 +1,10 @@
+* text=auto
+*.py text eol=lf
+*.cpp text eol=lf
+*.h text eol=lf
+*.java text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.cmake text eol=lf
+*.json text eol=lf
+*.ps1 text eol=crlf

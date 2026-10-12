@@ -1,0 +1,20 @@
+# Saint-Lo SHA256 49e38a116b8f3c5e81c5206fd461496a6da518cf9427843b38f2cad33910ef2b
+# Ghidra: exact PPC context-save prologue and final interface wait call.
+
+[[midasm_hook]]
+address = 0x8919062C
+name = "Cod3ReturnFromGuestYield"
+after_instruction = true
+return = true
+
+[[midasm_hook]]
+address = 0x8919075C
+name = "Cod3ReturnFromGuestYield"
+after_instruction = true
+return = true
+
+[[midasm_hook]]
+address = 0x891908E0
+name = "Cod3ReturnFromGuestYield"
+after_instruction = true
+return = true

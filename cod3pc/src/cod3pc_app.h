@@ -6,6 +6,8 @@
 
 #include <rex/rex_app.h>
 
+void InstallCod3CrashTrace();
+
 class Cod3pcApp : public rex::ReXApp {
  public:
   using rex::ReXApp::ReXApp;
@@ -20,6 +22,8 @@ class Cod3pcApp : public rex::ReXApp {
     // Use the SDK's Xenos backend for the original game's GPU commands.
     if (config.gpu_plugin.empty()) config.gpu_plugin = "xenos";
   }
+
+  void OnPostSetup() override { InstallCod3CrashTrace(); }
 
   // Override virtual hooks for customization:
   // void OnPostInitLogging() override {}

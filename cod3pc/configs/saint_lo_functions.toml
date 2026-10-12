@@ -1,0 +1,6 @@
+# Bound to saint_lo.dll SHA256 49e38a116b8f3c5e81c5206fd461496a6da518cf9427843b38f2cad33910ef2b.
+# Ghidra InspectCod3.java, 2026-10-12: 890C194C branches back to 890C1900;
+# 890C1950 is a distinct blr (4E800020), followed by zero padding at 890C1954.
+# Real indirect runtime target; preserve the original one-instruction function.
+[functions]
+"0x890C1950" = { size = 4 }

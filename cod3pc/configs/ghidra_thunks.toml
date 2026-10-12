@@ -1,0 +1,12 @@
+# Ghidra-verified .rdata-referenced this-adjustment thunks.
+# For default.xex SHA-256 2944eec7d1231ad6798b5f9f8adf8855f5e489296b22eab45b27a577cee23692
+[functions]
+"0x8216DBB8" = { size = 8 } # target 0x8216DA10, rdata 820286ec
+"0x8216D920" = { size = 8 } # target 0x8216D778, rdata 82028710
+"0x822D0450" = { size = 8 } # target 0x822CFB50, rdata 8204ae90
+"0x822D0448" = { size = 8 } # target 0x822D2048, rdata 8204aea4
+"0x822D0488" = { size = 8 } # target 0x822CFDE8, rdata 8204aea8
+"0x822D2500" = { size = 8 } # target 0x822D1FD0, rdata 8204af6c
+"0x822D2528" = { size = 8 } # target 0x822D21A0, rdata 8204af98
+"0x822D24E0" = { size = 8 } # target 0x822D2200, rdata 8204afa0
+"0x822D2508" = { size = 8 } # target 0x822D23D8, rdata 8204afb0

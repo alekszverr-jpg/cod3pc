@@ -5,6 +5,7 @@
 /logs/**
 !/logs/.gitkeep
 /cod3pc/generated/default/
+/cod3pc/generated/saint_lo/
 /cod3pc/out/
 /cod3pc/metadata/
 /cod3pc/assets/
