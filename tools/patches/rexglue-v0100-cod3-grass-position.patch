@@ -1,0 +1,41 @@
+diff --git a/src/graphics/pipeline/shader/dxbc_translator_alu.cpp b/src/graphics/pipeline/shader/dxbc_translator_alu.cpp
+index 66834e5..343640e 100644
+--- a/src/graphics/pipeline/shader/dxbc_translator_alu.cpp
++++ b/src/graphics/pipeline/shader/dxbc_translator_alu.cpp
+@@ -11,6 +11,10 @@
+ 
+ #include <cfloat>
+ #include <cmath>
++#include <rex/cvar.h>
++
++REXCVAR_DEFINE_BOOL(cod3_grass_position_fix, false, "GPU",
++                    "Experimental CoD3 SP grass position compatibility correction");
+ 
+ #include <rex/assert.h>
+ #include <rex/graphics/pipeline/shader/dxbc_translator.h>
+@@ -699,8 +703,23 @@ void DxbcShaderTranslator::ProcessScalarAluOperation(
+       a_.OpAnd(ps_dest, ps_src, dxbc::Src::LF(1.0f));
+       break;
+     case AluScalarOpcode::kSges:
+-      a_.OpGE(ps_dest, operand_0_a, dxbc::Src::LF(0.0f));
+-      a_.OpAnd(ps_dest, ps_src, dxbc::Src::LF(1.0f));
++      // Local compatibility experiment, not a change to general SGES semantics.
++      // The verified SP grass shader otherwise drops matrix translation for
++      // six vertices of a seven-vertex blade, stretching it behind the camera.
++      // Keep the position homogeneous for this exact shader/instruction only.
++      if (REXCVAR_GET(cod3_grass_position_fix) &&
++          current_shader().type() == xenos::ShaderType::kVertex &&
++          current_shader().ucode_data_hash() == UINT64_C(0x4B4E6FDA02FB39C3) &&
++          instr.scalar_result.storage_index == 1 &&
++          instr.scalar_result.original_write_mask == 0b1000 &&
++          instr.scalar_operands[0].storage_source == InstructionStorageSource::kRegister &&
++          instr.scalar_operands[0].storage_index == 5 &&
++          instr.scalar_operands[0].components[0] == SwizzleSource::kW) {
++        a_.OpMov(ps_dest, dxbc::Src::LF(1.0f));
++      } else {
++        a_.OpGE(ps_dest, operand_0_a, dxbc::Src::LF(0.0f));
++        a_.OpAnd(ps_dest, ps_src, dxbc::Src::LF(1.0f));
++      }
+       break;
+     case AluScalarOpcode::kSnes:
+       a_.OpNE(ps_dest, operand_0_a, dxbc::Src::LF(0.0f));

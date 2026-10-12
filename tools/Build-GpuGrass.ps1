@@ -1,0 +1,30 @@
+. "$PSScriptRoot/Enter-Toolchain.ps1"
+$taskSdkRoot = Join-Path $ProjectRoot 'external/rexglue-sdk'
+$taskPinnedSdk = 'c94f5ebdcb3c9d1a460ca48e04f9758448f8d518'
+$taskSdkHead = & $Git -C $taskSdkRoot rev-parse HEAD
+if ($LASTEXITCODE -ne 0 -or $taskSdkHead -ne $taskPinnedSdk) {
+    throw 'Grass shader experiment requires the reviewed ReXGlue source commit.'
+}
+$taskPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-cod3-grass-position.patch'
+# Do not combine this experiment with the failed vertex-residency experiment.
+$taskResidencyPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-vertex-residency.patch'
+& $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskResidencyPatch 2>$null
+if ($LASTEXITCODE -eq 0) {
+    & $Git -C $taskSdkRoot apply --reverse --ignore-whitespace $taskResidencyPatch
+    if ($LASTEXITCODE -ne 0) { throw 'Reverting the separate GPU coherency experiment failed.' }
+}
+& $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskPatch 2>$null
+if ($LASTEXITCODE -ne 0) {
+    & $Git -C $taskSdkRoot apply --check --ignore-whitespace $taskPatch
+    if ($LASTEXITCODE -ne 0) { throw 'GPU source differs from the reviewed patch context.' }
+    & $Git -C $taskSdkRoot apply --ignore-whitespace $taskPatch
+    if ($LASTEXITCODE -ne 0) { throw 'Applying grass shader patch failed.' }
+}
+& $CMake --build "$taskSdkRoot/out/build/win-amd64" --config RelWithDebInfo --target rexgpu-xenos --parallel 4 `
+    2>&1 | Tee-Object "$ProjectRoot/logs/gpu-grass-build.log"
+if ($LASTEXITCODE -ne 0) { throw 'Grass test GPU build failed.' }
+$taskGpuSource = Join-Path $taskSdkRoot 'out/win-amd64/RelWithDebInfo/rexgpu-xenosrd.dll'
+$taskGpuTarget = Join-Path $ProjectRoot 'cod3pc/out/build/win-amd64-relwithdebinfo/rexgpu-xenos-grassrd.dll'
+Copy-Item -LiteralPath $taskGpuSource -Destination $taskGpuTarget -Force
+Get-FileHash -LiteralPath $taskGpuTarget -Algorithm SHA256
+Write-Output 'Test with Run-Native.ps1 -GrassShaderTest. Runtime verification is required.'

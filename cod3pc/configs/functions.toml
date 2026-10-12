@@ -19,3 +19,7 @@ longjmp_address = 0x8234EEC0
 "0x822CAB78" = { size = 24 }
 # Runtime target; Ghidra confirmed addi r3,r3,4; b 0x8216D600.
 "0x8216D720" = { size = 8 }
+# Runtime while continuing Saint-Lo (grass-renderdoc.log, 2026-10-12).
+# Ghidra: previous block ends in bctr at 8249850C; this entry scans a u16
+# table at global+856 and returns 0/1 at 82498550/82498558. Zero padding at 55C.
+"0x82498510" = { size = 76 }

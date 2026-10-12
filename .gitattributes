@@ -8,3 +8,5 @@
 *.cmake text eol=lf
 *.json text eol=lf
 *.ps1 text eol=crlf
+# Unified diffs require a single-space prefix on empty context lines.
+*.patch text eol=lf whitespace=-blank-at-eol

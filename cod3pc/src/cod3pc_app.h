@@ -5,6 +5,8 @@
 #pragma once
 
 #include <rex/rex_app.h>
+#include <rex/cvar.h>
+#include <rex/logging.h>
 
 void InstallCod3CrashTrace();
 
@@ -23,7 +25,14 @@ class Cod3pcApp : public rex::ReXApp {
     if (config.gpu_plugin.empty()) config.gpu_plugin = "xenos";
   }
 
-  void OnPostSetup() override { InstallCod3CrashTrace(); }
+  void OnPostSetup() override {
+    InstallCod3CrashTrace();
+    REXLOG_INFO("COD3_GPU_SETTINGS memexport={} memexport_fast={} resolve={} page_refresh={}",
+        rex::cvar::GetFlagByName("readback_memexport"),
+        rex::cvar::GetFlagByName("readback_memexport_fast"),
+        rex::cvar::GetFlagByName("readback_resolve"),
+        rex::cvar::GetFlagByName("clear_memory_page_state"));
+  }
 
   // Override virtual hooks for customization:
   // void OnPostInitLogging() override {}
