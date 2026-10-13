@@ -1,0 +1,30 @@
+# default.xex SHA256 2944eec7d1231ad6798b5f9f8adf8855f5e489296b22eab45b27a577cee23692.
+# Ghidra InspectCod3.java 2026-10-13, logs/ghidra-transition-trace.log.
+# Observe the original loader and exits; never suppress termination.
+[[midasm_hook]]
+address = 0x823439B0
+name = "Cod3TraceLaunchTitle"
+registers = ["r3", "r4"]
+
+[[midasm_hook]]
+address = 0x82344D48
+name = "Cod3TraceStartupTerminate"
+
+[[midasm_hook]]
+address = 0x82344EBC
+name = "Cod3TraceMainTerminate"
+
+[[midasm_hook]]
+address = 0x82343E98
+name = "Cod3TraceLoadImage"
+registers = ["r3", "r4"]
+
+[[midasm_hook]]
+address = 0x82343E9C
+name = "Cod3TraceLoadImageResult"
+registers = ["r3"]
+
+[[midasm_hook]]
+address = 0x82343E14
+name = "Cod3TraceUnloadImage"
+registers = ["r3"]

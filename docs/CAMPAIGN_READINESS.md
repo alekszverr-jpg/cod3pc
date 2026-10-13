@@ -44,3 +44,16 @@ or multiplayer title-update offsets.
 Focused synthetic tests cover XEX magic under an unexpected extension, a DLL
 filename containing ordinary data, a mismatching guest path and duplicate
 manifest source declarations. No original game code is used in these fixtures.
+
+2026-10-13 update: the user reports completion of Saint-Lo and the application
+closing immediately afterwards. native-20261013-130703-196.log ends with
+Execution complete (13:23:28.224), with no FATAL. It does not identify a requested
+next module. Added logging-only hooks for original XexLoadImage (82343E98),
+its return (82343E9C), XexUnloadImage (82343E14), XamLoaderLaunchTitle
+(823439B0), and XamLoaderTerminateTitle (82344D48/82344EBC).
+Ghidra instruction evidence: logs/ghidra-transition-trace.log, pinned default
+SHA-256; return point 82343E9C follows the verified bl at 82343E98.
+Original loading and exit behavior remain intact. Eight tests, strict codegen
+and native build passed (transition-trace-*-console.log).
+New diagnostic run: logs/native-transition-dof.log, started through the menu.
+First-mission completion is reported, second-mission transition is unverified.

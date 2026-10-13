@@ -174,3 +174,17 @@ rexgpu-xenos-grassrd.dll and entered original 82344D00 (grass-default-run.log).
 The final strict native build and all five tests passed. Original instructions,
 images and GPU captures remain private; Git contains only authored patches and
 diagnostic documentation.
+
+## Reported excessive aiming depth of field, 2026-10-13
+
+The user supplied three aiming screenshots: the weapon and HUD remain sharp,
+while most of the world is heavily blurred, including the aimed-at subjects.
+Private originals: reports/dof-report-1.png through dof-report-3.png.
+This identifies a post-processing symptom; it does not establish incorrect
+depth resolve, shader constants or ALU translation without a captured frame.
+No DoF-disable workaround or guessed shader change has been applied.
+One native menu launch was prepared with RenderDoc 1.46 (verified capture
+--help), capture template reports/dof-transition, runtime log
+logs/native-transition-dof.log. Requested aiming and non-aiming captures
+from the same viewpoint. Next: identify blur/composition passes, inspect their
+depth and focus inputs, then compare to the original/reference behavior.
