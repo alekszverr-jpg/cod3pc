@@ -4,3 +4,8 @@
 # Real indirect runtime target; preserve the original one-instruction function.
 [functions]
 "0x890C1950" = { size = 4 }
+# Repeated first-battle check, native-20261013-102856-653.log, 10:49:28.910.
+# Ghidra InspectCod3.java 2026-10-13: previous block ends in bctr at 891A7A2C;
+# 891A7A30 is the original blr (4E800020), zero padding at 891A7A34.
+# Preserve this genuine single-instruction function, not a host success stub.
+"0x891A7A30" = { size = 4 }
