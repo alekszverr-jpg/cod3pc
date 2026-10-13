@@ -57,3 +57,13 @@ Original loading and exit behavior remain intact. Eight tests, strict codegen
 and native build passed (transition-trace-*-console.log).
 New diagnostic run: logs/native-transition-dof.log, started through the menu.
 First-mission completion is reported, second-mission transition is unverified.
+
+The user clarified that Saint-Lo closed automatically on progression, not after
+pressing Exit. In the subsequent capture run the user selected the second mission;
+native-transition-dof.log at 15:41:18.203 records the actual engine request
+game:\sp\island\island.dll. The image loads, but its entry 89226748 is absent
+from the function table; the following indirect call fails at 89089260.
+This is evidence to select Island for separate static recompilation, not evidence
+of playable second-mission gameplay. Its native code is not in the manifest yet.
+The menu capture was restarted at the user's request: native-dof-retry.log,
+reports/dof-retry capture template. Saint-Lo must be selected for the DoF check.
