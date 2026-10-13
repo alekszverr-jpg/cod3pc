@@ -56,6 +56,9 @@ try {
                 $preset = 'win-amd64-' + $Configuration.ToLowerInvariant()
                 Invoke-Logged $CMake @('--preset',$preset,"-DCMAKE_PREFIX_PATH=$SdkPrefix") 'app-configure.log'
                 Invoke-Logged $CMake @('--build','--preset',$preset,'--parallel','4') 'app-build.log'
+                if ($Configuration -eq 'RelWithDebInfo') {
+                    & "$PSScriptRoot/Build-GpuGrass.ps1"
+                }
             } finally { Pop-Location }
         }
     }

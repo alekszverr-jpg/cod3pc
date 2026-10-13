@@ -1,5 +1,14 @@
 # Saint-Lo vegetation investigation
 
+Current result (2026-10-13): the scalar-pair compatibility correction is enabled
+by default in the Windows RelWithDebInfo application and normal Run-Native.ps1
+launch. Native frames 22456 and 23280 show tall upright grass without the previous
+long strips or slanted ribbons; the user confirmed the corrected orientation.
+Build.ps1 -Stage Build builds/stages the pinned custom Xenos plugin automatically.
+Use Run-Native.ps1 -StockGpu for the original SDK backend. Debug and Release
+still use stock Xenos. This is a game-specific compatibility correction, not a
+verified general change to Xbox 360 ALU semantics or a full campaign guarantee.
+
 2026-10-12: the user reports long green grass strips through the scene and
 explicitly requests preserving grass and correcting rendering. Disabling the
 grass initializer is not the chosen solution.
@@ -98,7 +107,7 @@ is required before considering promotion of this compatibility workaround.
 
 Candidate DLL SHA256:
 60C65D577C8BA69E488159FCAE6DE9013BEF310F5850258AC4A9654DA32631E4.
-The stock Xenos plugin remains the normal launcher default.
+At that stage, the stock Xenos plugin remained the normal launcher default.
 
 Validation: `Build-GpuGrass.ps1`, `Build.ps1 -Stage Build` (strict codegen with
 `--ignore-stamp` and optimized native build), and `Build.ps1 -Stage Tests` all
@@ -118,3 +127,50 @@ extraction, source maps, replay comparisons and native captures are the usable
 evidence. The user offered RPCS3 reference screenshots; these can guide shape,
 height and density comparison, while Xbox GPU semantics still require local
 shader evidence.
+
+## RPCS3 reference and scalar-pair experiment (2026-10-13)
+
+The user supplied three PS3/RPCS3 views of the Huxley area. Vegetation is dense,
+tall and approximately vertical; the homogeneous-W experiment instead produces
+short slanted ribbons. The images are preserved privately as
+reports/rpcs3-grass-reference-{1,2,3}.png. PS3 screenshots guide appearance but
+do not establish Xbox 360 instruction semantics.
+
+Replay instrumentation of the original shader exports intermediate registers
+through existing varyings. The grass-height parameter is positive (one sampled
+blade: 10.7828), while the scalar-derived curve offset makes the homogeneous
+component differ between vertices. The pinned decoder interprets a co-issued
+MAXS as selecting between c80.z (variation) and c80.x (animation time). Two
+co-issued SUBS operations likewise derive offsets from differing components of
+the shared third vector source. Those readings are a narrowly scoped hypothesis,
+not proof that the decoder is generally wrong.
+
+Replay of frame 93794 with the second component equal to the first in these
+three operations produces upright vegetation without the earlier forced-W
+change. The original SGES operation is retained. Before/after images and
+instrumented shaders remain private in reports/grass-coissue-*.
+
+The new SDK patch is rexglue-v0100-cod3-grass-alu.patch. It is guarded by the
+same exact vertex ucode hash, the three source/destination register pairs,
+opcodes, write masks and the co-issued third vector operand. It changes only
+these scalar operands. It does not alter the general ALU decoder, skip grass,
+or substitute original PPC functions. Build-GpuGrass.ps1 replaces the previous
+W experiment and stages the separate xenos-grass plugin; Run-Native.ps1
+-GrassShaderTest now selects cod3_grass_scalar_pair_fix=true.
+
+Candidate SHA256:
+875171E78169F4B4CE3EC5715F352E9F5D313E2E8162144F113CABA80039D391.
+Build-GpuGrass.ps1, strict Build.ps1 -Stage Build and all five existing tests
+passed. The native diagnostic run is logs/grass-alu-test.log. The user confirmed
+vertical grass and recorded frames 22456 and 23280; both were visually inspected.
+They agree with the reference's upright shape and show no prior long strips.
+
+The final patch defaults cod3_grass_scalar_pair_fix to true in the dedicated
+plugin. Final plugin SHA256:
+999E7D41F2CE65598722B03E5E04DDDCE7F283D2DB4ED2451EB052A693EE303E.
+The application selects xenos-grass by default only in Windows RelWithDebInfo.
+An ordinary EXE launch without --gpu_plugin was checked: the process loaded
+rexgpu-xenos-grassrd.dll and entered original 82344D00 (grass-default-run.log).
+The final strict native build and all five tests passed. Original instructions,
+images and GPU captures remain private; Git contains only authored patches and
+diagnostic documentation.

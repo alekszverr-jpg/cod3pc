@@ -7,6 +7,14 @@ if ($LASTEXITCODE -ne 0 -or $taskSdkHead -ne $taskPinnedSdk) {
     throw 'GPU patch requires the reviewed ReXGlue 0.10.0 source commit.'
 }
 $taskPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-vertex-residency.patch'
+foreach ($taskGrassPatchName in @('rexglue-v0100-cod3-grass-alu.patch','rexglue-v0100-cod3-grass-position.patch')) {
+    $taskGrassPatch = Join-Path $PSScriptRoot "patches/$taskGrassPatchName"
+    & $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskGrassPatch 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        & $Git -C $taskSdkRoot apply --reverse --ignore-whitespace $taskGrassPatch
+        if ($LASTEXITCODE -ne 0) { throw 'Reverting the separate grass compatibility patch failed.' }
+    }
+}
 & $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskPatch 2>$null
 if ($LASTEXITCODE -ne 0) {
     & $Git -C $taskSdkRoot apply --check --ignore-whitespace $taskPatch

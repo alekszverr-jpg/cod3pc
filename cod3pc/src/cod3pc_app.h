@@ -22,7 +22,13 @@ class Cod3pcApp : public rex::ReXApp {
 
   void OnPreSetup(rex::RuntimeConfig& config) override {
     // Use the SDK's Xenos backend for the original game's GPU commands.
-    if (config.gpu_plugin.empty()) config.gpu_plugin = "xenos";
+    if (config.gpu_plugin.empty()) {
+#if defined(COD3_GRASS_GPU_AVAILABLE)
+      config.gpu_plugin = "xenos-grass";
+#else
+      config.gpu_plugin = "xenos";
+#endif
+    }
   }
 
   void OnPostSetup() override {

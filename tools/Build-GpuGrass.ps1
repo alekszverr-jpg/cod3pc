@@ -5,7 +5,13 @@ $taskSdkHead = & $Git -C $taskSdkRoot rev-parse HEAD
 if ($LASTEXITCODE -ne 0 -or $taskSdkHead -ne $taskPinnedSdk) {
     throw 'Grass shader experiment requires the reviewed ReXGlue source commit.'
 }
-$taskPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-cod3-grass-position.patch'
+$taskPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-cod3-grass-alu.patch'
+$taskOldPositionPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-cod3-grass-position.patch'
+& $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskOldPositionPatch 2>$null
+if ($LASTEXITCODE -eq 0) {
+    & $Git -C $taskSdkRoot apply --reverse --ignore-whitespace $taskOldPositionPatch
+    if ($LASTEXITCODE -ne 0) { throw 'Reverting the earlier homogeneous-W experiment failed.' }
+}
 # Do not combine this experiment with the failed vertex-residency experiment.
 $taskResidencyPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-vertex-residency.patch'
 & $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskResidencyPatch 2>$null
@@ -27,4 +33,4 @@ $taskGpuSource = Join-Path $taskSdkRoot 'out/win-amd64/RelWithDebInfo/rexgpu-xen
 $taskGpuTarget = Join-Path $ProjectRoot 'cod3pc/out/build/win-amd64-relwithdebinfo/rexgpu-xenos-grassrd.dll'
 Copy-Item -LiteralPath $taskGpuSource -Destination $taskGpuTarget -Force
 Get-FileHash -LiteralPath $taskGpuTarget -Algorithm SHA256
-Write-Output 'Test with Run-Native.ps1 -GrassShaderTest. Runtime verification is required.'
+Write-Output 'Corrected grass plugin staged. Stock comparison: Run-Native.ps1 -StockGpu.'

@@ -1,0 +1,50 @@
+diff --git a/src/graphics/pipeline/shader/dxbc_translator_alu.cpp b/src/graphics/pipeline/shader/dxbc_translator_alu.cpp
+index 66834e5..975a93c 100644
+--- a/src/graphics/pipeline/shader/dxbc_translator_alu.cpp
++++ b/src/graphics/pipeline/shader/dxbc_translator_alu.cpp
+@@ -11,6 +11,10 @@
+ 
+ #include <cfloat>
+ #include <cmath>
++#include <rex/cvar.h>
++
++REXCVAR_DEFINE_BOOL(cod3_grass_scalar_pair_fix, true, "GPU",
++                    "CoD3 SP grass scalar-pair compatibility correction");
+ 
+ #include <rex/assert.h>
+ #include <rex/graphics/pipeline/shader/dxbc_translator.h>
+@@ -610,6 +614,34 @@ void DxbcShaderTranslator::ProcessScalarAluOperation(
+   dxbc::Src operand_0_b(operands_loaded[0].SelectFromSwizzled(1));
+   dxbc::Src operand_1(operands_loaded[1].SelectFromSwizzled(0));
+ 
++  // Verified only for the original SP grass ucode. These co-issued operations
++  // use different X and W components of the shared third vector source.
++  // The X interpretation injects animation time into height and bends the blade
++  // into the wrong plane. Replay and native visual checks are required; this
++  // compatibility override does not redefine general Xenos scalar semantics.
++  if (REXCVAR_GET(cod3_grass_scalar_pair_fix) &&
++      current_shader().type() == xenos::ShaderType::kVertex &&
++      current_shader().ucode_data_hash() == UINT64_C(0x4B4E6FDA02FB39C3) &&
++      instr.scalar_operand_count == 1 && instr.vector_operand_count == 3) {
++    const auto& source = instr.scalar_operands[0];
++    const auto& result = instr.scalar_result;
++    const bool height_variation = instr.scalar_opcode == AluScalarOpcode::kMaxs &&
++        source.storage_source == InstructionStorageSource::kConstantFloat &&
++        source.storage_index == 80 && result.storage_index == 5 &&
++        result.original_write_mask == 0b0010;
++    const bool color_offset = instr.scalar_opcode == AluScalarOpcode::kSubs &&
++        source.storage_source == InstructionStorageSource::kConstantFloat &&
++        source.storage_index == 44 && result.storage_index == 7 &&
++        result.original_write_mask == 0b1000;
++    const bool curve_offset = instr.scalar_opcode == AluScalarOpcode::kSubs &&
++        source.storage_source == InstructionStorageSource::kRegister &&
++        source.storage_index == 5 && result.storage_index == 5 &&
++        result.original_write_mask == 0b1000;
++    if (height_variation || color_offset || curve_offset) {
++      operand_0_b = operand_0_a;
++    }
++  }
++
+   dxbc::Dest ps_dest(dxbc::Dest::R(system_temp_ps_pc_p0_a0_, 0b0001));
+   dxbc::Src ps_src(dxbc::Src::R(system_temp_ps_pc_p0_a0_, dxbc::Src::kXXXX));
+   switch (instr.scalar_opcode) {
