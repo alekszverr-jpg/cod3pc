@@ -313,3 +313,13 @@ blur threshold. It does not establish parity with the original Xbox 360;
 RPCS3 may differ in game logic or tuning. DoF remains a visual discrepancy
 requiring equivalent-distance Xbox 360 reference or further source evidence,
 not a confirmed broken depth conversion. No DoF behavior patch was applied.
+
+The user then checked the Xbox 360 game in Xenia and reported the same intense
+DoF as this native port, while RPCS3's PS3 game has milder, more useful focus.
+This establishes reported visual agreement with Xenia, not physical-console
+parity. ReXGlue's Xenos GPU code derives from Xenia, so a shared rendering
+issue remains possible; platform-specific game/shader tuning is also possible.
+No exact Xenia build/settings or equivalent-distance GPU capture were supplied.
+Do not treat the PS3 appearance alone as proof that this port's DoF is broken.
+An optional milder DoF setting would be a deliberate visual customization,
+unless a shared Xenos issue is established from original hardware evidence.
