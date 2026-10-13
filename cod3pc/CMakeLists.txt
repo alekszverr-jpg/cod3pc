@@ -17,6 +17,7 @@ set(COD3PC_SOURCES
     src/runtime/crash_trace.cpp
     src/runtime/fiber_task.cpp
     src/runtime/script_coroutines.cpp
+    src/runtime/save_trace.cpp
 )
 
 if(WIN32)
