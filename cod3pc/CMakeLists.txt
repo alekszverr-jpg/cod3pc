@@ -19,6 +19,7 @@ set(COD3PC_SOURCES
     src/runtime/script_coroutines.cpp
     src/runtime/save_trace.cpp
     src/runtime/transition_trace.cpp
+    src/runtime/dof_trace.cpp
 )
 
 if(WIN32)

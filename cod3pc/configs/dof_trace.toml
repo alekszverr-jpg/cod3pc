@@ -1,0 +1,8 @@
+# default.xex SHA256 2944eec7d1231ad6798b5f9f8adf8855f5e489296b22eab45b27a577cee23692.
+# Ghidra InspectCod3.java: logs/ghidra-0x82147098.log, 2026-10-13.
+# Original stores f1..f4 into 0x825B3070..0x825B307C then returns at 821470D0.
+# Observe the effective values after the original disabled-mode branch.
+[[midasm_hook]]
+address = 0x821470D0
+name = "Cod3TraceDofParameters"
+registers = ["r3", "f1", "f2", "f3", "f4"]

@@ -232,3 +232,84 @@ RenderDoc reference-all-resources enabled. Its local target control is armed
 to capture four consecutive frames following the user's first F12. This is
 needed to correlate the complete post-processing chain, since the single-frame
 captures do not unambiguously expose the candidate final mixing draw.
+
+Sequential captures 63427–63431 were received. The full scan identifies the
+actual final DoF mix in event 265 of frame 63427 (24 indices): exact DXBC
+instruction/body matching links it to original ucode 257C1107399A3162.
+The same pass is event 266 in frame 63429. Earlier bytecode matching ran before
+all requested dumps were available; re-running matches the actual shader.
+The depth-edge downsample is 8E6F505DEE7CDF9E, event 114 of frame 63427.
+The previously inspected depth-dependent constant-color pass is fog, not DoF.
+
+The mix reads original sharp color (26596), depth R32_FLOAT (26539), and blurred
+color (247028). Both color inputs were exported and visually inspected: the
+sharp input retains the soldier's face, while the blurred input loses it.
+Shader operations reconstruct q=1-depth, apply the far-focus threshold and
+clamp the mixing weight. Retrieved float constants include threshold
+0.958908617 and slope 100, with near blur disabled (-infinity). At face points
+(520,240)/(520,250), depth is 0.02615/0.02605; these values yield a saturated
+far-blur weight of 1 under the retrieved constants. Weapon depth 1 yields 0.
+This numerically explains the observed symptom; the source of the wrong
+focus/range correspondence still needs original-code tracing.
+
+Checked the host float24-depth scaling hypothesis: the corresponding depth
+surface (26558) has 0.01307/0.01302 at those points, while the game's resolved
+depth has precisely twice those values. Thus the expected host-half/guest-full
+conversion is present; multiplying the resolved depth by two would be a guess,
+not an established fix. Pixel debugging repeatedly cycles through the translated
+shader's control loop; a bounded 2000-state trace is saved, but is not used as
+proof of correct shader debugging. Dynamic bindless resources must be inspected
+without onlyUsed=True, which omits their bindings here; direct heap-index reads
+without the full descriptor-table mapping are not reliable evidence.
+
+Added FindRenderStrings.java for read-only Ghidra searches of original render
+strings and existing/pointer references. It does not add function boundaries
+or modify original code. Its compile and scan succeeded; DOF labels were
+found. All shader dumps,
+traces, raw bytecode, numerical samples and reference images remain private.
+No rendering behavior has been changed and no corrected native result claimed.
+
+Following the original DOF string at 8207B628 identifies registration in
+823F0128: the parameter pointer is stored at object offset 0x384. Renderer
+methods 823F5028 and 823F5868 copy its four values from global 825B3070 through
+82147110 and 82141CF0. The original setter 82147098 stores f1..f4 at that global;
+its instruction bytes and disabled-mode branch were checked with Ghidra
+(logs/ghidra-0x82147098.log). The fixed-function path in 82149C80 projects the
+distance values using near/far camera distances before uploading constants.
+These findings narrow the investigation but do not establish a rendering fix.
+
+Added read-only Cod3TraceDofParameters at the original setter's BLR 821470D0.
+It records effective mode and four FPR values only when changed, at most twice
+per second. The callback leaves all guest registers/memory untouched and logs
+the original disabled-mode result. Strict reanalysis/codegen and native build
+passed; generated code invokes the callback after the four original stores.
+Validation: tools/Build.ps1 -Stage Build (logs/dof-trace-build-console.log),
+tools/Build.ps1 -Stage Tests (six parser tests and two native tests passed,
+logs/dof-trace-tests-console.log). A final incremental build also passed.
+
+Manual near/far aiming check received. Runtime native-20261013-230114-517.log
+records every observed aim activation as mode=1, values=[0,144,2,100000], and
+release as mode=0, values=[1,1,1,0]. No changed focus distances were observed
+in this check. This is evidence about this setter, not proof that Xbox 360
+requires automatic focus or that the callback covers every rendering path.
+The projected far threshold agrees with the earlier captured value:
+(1 - 6/144) * (100000/(100000-6)) = approximately 0.9589086.
+Thus the observed threshold is consistent with the requested original distance,
+rather than a random constant-upload corruption. The target-depth discrepancy
+and the visual difference from RPCS3 remain unresolved.
+
+FindAddressReferences.java compiled and scanned original default.xex read-only.
+It found the DoF wrapper 824980C0 in the original address/key table at 825F5D34
+(preceding key 000003B8), and the two direct setter branches 820C1518/824980F0.
+Private evidence: logs/ghidra-dof-callers.log and ghidra-dof-table-context.log.
+No guessed adjustment to 144, the depth scale, or blur strength was applied.
+
+Follow-up manual check in the same running build: the user approached a soldier
+or crate closely and confirmed that the aimed-at close object stays sharp.
+This rules out a uniformly blurred world in that check. Together with the
+unchanging original setter values and the matching projected GPU threshold,
+the current evidence supports a working near sharp region and a fixed far
+blur threshold. It does not establish parity with the original Xbox 360;
+RPCS3 may differ in game logic or tuning. DoF remains a visual discrepancy
+requiring equivalent-distance Xbox 360 reference or further source evidence,
+not a confirmed broken depth conversion. No DoF behavior patch was applied.
