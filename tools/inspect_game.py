@@ -95,18 +95,19 @@ def inventory(root):
             'dependency_note': 'Dependencies are not established by signatures alone.'}
 
 
+def xex_paths(root, files):
+    """Find genuine XEX images from the inventory, regardless of extension."""
+    return [root / row['path'] for row in files
+            if row['prefix16_hex'].startswith('58455832')]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('game_root', type=Path)
     parser.add_argument('--output', type=Path, default=Path('reports/game-analysis.json'))
     args = parser.parse_args()
     report = inventory(args.game_root)
-    executable_paths = []
-    for p in sorted(args.game_root.rglob('*')):
-        if p.is_file() and p.suffix.lower() in ('.xex', '.dll'):
-            with p.open('rb') as stream:
-                if stream.read(4) == b'XEX2':
-                    executable_paths.append(p)
+    executable_paths = xex_paths(args.game_root, report['files'])
     report['executables'] = [dict(inspect_xex(p), path=p.relative_to(args.game_root).as_posix())
                              for p in executable_paths]
     args.output.parent.mkdir(parents=True, exist_ok=True)
