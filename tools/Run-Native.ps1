@@ -1,7 +1,8 @@
 param([int]$Seconds = 30, [switch]$Headless, [switch]$Interactive,
     [ValidateSet('Debug','RelWithDebInfo','Release')][string]$Configuration = 'RelWithDebInfo',
     [switch]$FirstMission, [switch]$SynchronousMemexport, [switch]$GpuCoherencyTest,
-    [switch]$FullGpuReadback, [switch]$GrassShaderTest, [switch]$StockGpu)
+    [switch]$FullGpuReadback, [switch]$GrassShaderTest, [switch]$StockGpu,
+    [switch]$ShaderDiagnostics)
 . "$PSScriptRoot/Enter-Toolchain.ps1"
 $app = Join-Path $ProjectRoot ('cod3pc/out/build/win-amd64-' + $Configuration.ToLowerInvariant() + '/cod3pc.exe')
 if (!(Test-Path -LiteralPath $app)) { throw 'Build cod3pc first' }
@@ -22,6 +23,11 @@ $arguments = @('--gpu_plugin',$taskGpuPlugin,'--game_data_root',('"{0}"' -f "$Pr
 if ($Headless) { $arguments += '--headless' }
 if ($Interactive) { $arguments += @('--mnk_mode','true') }
 if ($FirstMission) { $arguments += @('--cl','"+spmap saint_lo"') }
+if ($ShaderDiagnostics) {
+    $taskShaderDump = Join-Path $ProjectRoot 'reports/shader-diagnostics'
+    New-Item -ItemType Directory -Force $taskShaderDump | Out-Null
+    $arguments += ('--dump_shaders="{0}"' -f $taskShaderDump)
+}
 # Diagnostic comparison: retain vegetation and synchronously copy GPU-exported
 # data back to guest memory, instead of the SDK's delayed double-buffered path.
 if ($SynchronousMemexport) {

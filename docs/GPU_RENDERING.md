@@ -204,3 +204,31 @@ pass is not proven. Do not patch that shader merely because it reads depth.
 The generated DXBC and constants, source textures, full draw summaries and
 PNG outputs remain private under reports/dof-*. A full pass review, including
 screen grids with more than six indices, is ongoing. No DoF fix applied yet.
+
+RPCS3 reference comparison received: five screenshots at the same training
+area (2026-10-13 16:49). The aimed-at helmets and Huxley's face remain sharp;
+more distant scenery is blurred. The corresponding native targeting view
+blurs the helmets too. Private reference copies: reports/rpcs3-dof-*.png.
+This supports an incorrect focus selection/mask report, rather than a request
+to remove the intended effect. PS3 screenshots establish a visual reference,
+not a proof of Xbox 360 shader hardware semantics.
+
+Added Run-Native.ps1 -ShaderDiagnostics to enable the pinned SDK dump_shaders
+CVar under reports/shader-diagnostics. A bounded 30-second native menu run
+entered the original entrypoint and produced original ucode and translated
+shader dumps. PowerShell parsing of the launch script passed. All dumps are
+private; this switch only requests diagnostic output, not different rendering.
+
+Candidate original mixing shader found in the cache: pixel ucode hash
+257C1107399A3162. It samples tf0/tf1 RGB and tf2 X, forms two scalar distances,
+clamps their maximum and interpolates RGB. A depth-edge downsample shader
+8E6F505DEE7CDF9E was also identified from its original instructions. These
+identifications must still be correlated to the actual active draw and inputs;
+the first bytecode matching attempt did not find an exact container/code match.
+No change to these shader operations has been applied.
+
+A new ordinary-menu capture run is open (native-dof-sequence.log), with
+RenderDoc reference-all-resources enabled. Its local target control is armed
+to capture four consecutive frames following the user's first F12. This is
+needed to correlate the complete post-processing chain, since the single-frame
+captures do not unambiguously expose the candidate final mixing draw.
