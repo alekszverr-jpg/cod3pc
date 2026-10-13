@@ -14,6 +14,8 @@ No interpreter/JIT/emulator process as final application backend.
 - `external/`: ignored official SDK, rexauto extraction helper, Ghidra.
 - `logs/`, `reports/`: private diagnostic evidence; never blindly git add.
 - See `docs/STATUS.md` for verified milestones and outstanding work.
+- Follow `docs/ROADMAP.md` for development priorities and acceptance criteria;
+  update the active blocker from actual runtime evidence.
 
 ## Engineering rules
 

@@ -23,3 +23,8 @@ longjmp_address = 0x8234EEC0
 # Ghidra: previous block ends in bctr at 8249850C; this entry scans a u16
 # table at global+856 and returns 0/1 at 82498550/82498558. Zero padding at 55C.
 "0x82498510" = { size = 76 }
+# Runtime after the truck ride, native-20261013-095659-062.log.
+# Ghidra 2026-10-13: preceding bctr at 823C1F64; lwz at 823C1F68,
+# table lookup and mtspr CTR followed by bctr at 823C1F98; zero at 1F9C.
+# Thirteen instructions, original indirect tail call remains intact.
+"0x823C1F68" = { size = 52 }
