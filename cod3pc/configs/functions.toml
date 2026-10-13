@@ -28,3 +28,8 @@ longjmp_address = 0x8234EEC0
 # table lookup and mtspr CTR followed by bctr at 823C1F98; zero at 1F9C.
 # Thirteen instructions, original indirect tail call remains intact.
 "0x823C1F68" = { size = 52 }
+# First battle / reported plane flyover, native-20261013-101313-546.log.
+# Ghidra 2026-10-13: lis r11,0x82A3; mr r4,r3; lwz r3,-0x5488(r11);
+# b 0x82452308 at 82498BDC. Separate four-instruction tail-call wrapper;
+# previous wrapper ends at 82498BCC, next prologue begins at 82498BE0.
+"0x82498BD0" = { size = 16 }
