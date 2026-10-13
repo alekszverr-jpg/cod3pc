@@ -16,6 +16,10 @@ No interpreter/JIT/emulator process as final application backend.
 - See `docs/STATUS.md` for verified milestones and outstanding work.
 - Follow `docs/ROADMAP.md` for development priorities and acceptance criteria;
   update the active blocker from actual runtime evidence.
+- Launch one game window through the normal menu for manual checks:
+  `./tools/Run-Native.ps1 -Seconds 0 -Interactive` without `-FirstMission`.
+  The user prefers continuing from a checkpoint. Do not repeat a launch solely
+  because a sandboxed process query cannot see the external process.
 
 ## Engineering rules
 
