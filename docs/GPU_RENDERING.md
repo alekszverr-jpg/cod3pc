@@ -188,3 +188,19 @@ One native menu launch was prepared with RenderDoc 1.46 (verified capture
 logs/native-transition-dof.log. Requested aiming and non-aiming captures
 from the same viewpoint. Next: identify blur/composition passes, inspect their
 depth and focus inputs, then compare to the original/reference behavior.
+
+Six captures received: dof-retry frames 15707, 16504, 17036, 17585,
+61322 and 61500. Final images exported through RenderDoc replay and inspected.
+The first four show aiming. The later pair shows aiming (61322) and hip view
+(61500) at the training targets: the hip view is sharp, the aiming background
+is heavily blurred. This is a reproducible aiming-dependent defect report.
+
+Replay identifies a readable R32_FLOAT depth texture (1040x624), with weapon
+and scene silhouettes, not a uniformly empty depth resource. Sampled values
+in frame 61322 vary from 0.00573 to 0.01800 at selected scene points. One
+depth-dependent alpha pass was inspected (event 939, shader ResourceId::645),
+but its color/alpha constants also resemble fog; its role as the DoF focus
+pass is not proven. Do not patch that shader merely because it reads depth.
+The generated DXBC and constants, source textures, full draw summaries and
+PNG outputs remain private under reports/dof-*. A full pass review, including
+screen grids with more than six indices, is ongoing. No DoF fix applied yet.
