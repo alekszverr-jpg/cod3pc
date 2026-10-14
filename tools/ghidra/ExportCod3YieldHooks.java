@@ -10,15 +10,23 @@ import java.util.ArrayList;
 
 public class ExportCod3YieldHooks extends GhidraScript {
     public void run() throws Exception {
+        String[] args = getScriptArgs();
+        if (args.length != 2 || !args[1].matches("[0-9A-Fa-f]{64}"))
+            throw new Exception("Expected output TOML and verified module SHA256");
         Memory memory = currentProgram.getMemory();
         MemoryBlock text = memory.getBlock(".text");
         ArrayList<Address> starts = new ArrayList<>();
         for (Address a = text.getStart(); a.compareTo(text.getEnd().subtract(19)) < 0; a = a.add(4)) {
             monitor.checkCancelled();
-            if (memory.getInt(a) == 0x3D608925 && memory.getInt(a.add(4)) == 0x396B52C4
-                    && memory.getInt(a.add(16)) == 0x3821FE70) starts.add(a);
+            if ((memory.getInt(a) & 0xFFFF0000) == 0x3D600000 &&
+                    (memory.getInt(a.add(4)) & 0xFFFF0000) == 0x396B0000
+                    && memory.getInt(a.add(8)) == 0x7C2A0B78
+                    && memory.getInt(a.add(12)) == 0x914B0000
+                    && memory.getInt(a.add(16)) == 0x3821FE70
+                    && memory.getInt(a.add(20)) == 0xF8610008) starts.add(a);
         }
-        StringBuilder out = new StringBuilder("# Saint-Lo SHA256 49e38a116b8f3c5e81c5206fd461496a6da518cf9427843b38f2cad33910ef2b\n# Ghidra: exact PPC context-save prologue and final interface wait call.\n");
+        StringBuilder out = new StringBuilder("# " + currentProgram.getName() + " SHA256 " + args[1].toLowerCase() +
+                "\n# Ghidra: PPC context-save prologue and final interface wait call.\n");
         int count = 0;
         for (Address start : starts) {
             Address wait = null;
@@ -38,11 +46,13 @@ public class ExportCod3YieldHooks extends GhidraScript {
             disassemble(wait);
             if (getInstructionAt(wait) == null) throw new Exception("Wait did not disassemble");
             println("YIELD_WRAPPER " + start + " wait=" + wait + " " + getInstructionAt(wait));
+            for (int offset=0;offset<24;offset+=4)
+                println("PROLOGUE " + start.add(offset) + " " + String.format("%08X",memory.getInt(start.add(offset))));
             out.append(String.format("\n[[midasm_hook]]\naddress = 0x%08X\nname = \"Cod3ReturnFromGuestYield\"\nafter_instruction = true\nreturn = true\n", wait.getOffset()));
             count++;
         }
         if (count == 0) throw new Exception("No exact wrappers found");
-        Files.writeString(Path.of(getScriptArgs()[0]), out.toString());
+        Files.writeString(Path.of(args[0]), out.toString());
         println("EXPORTED " + count);
     }
 }

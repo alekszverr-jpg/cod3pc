@@ -22,11 +22,3 @@ TRACE_LEVEL_FUNCTION(sub_89132580)
 TRACE_LEVEL_FUNCTION(sub_891BE760)
 TRACE_LEVEL_FUNCTION(sub_891A1B88)
 TRACE_LEVEL_FUNCTION(sub_89191FD0)
-
-void Cod3ReturnFromGuestYield() {
-  using Restore = void (*)();
-  static const auto restore = reinterpret_cast<Restore>(
-      GetProcAddress(GetModuleHandleW(nullptr), "Cod3ResumeGuestYieldCore"));
-  if (!restore) REX_FATAL("Host script continuation restore export is absent");
-  restore();
-}

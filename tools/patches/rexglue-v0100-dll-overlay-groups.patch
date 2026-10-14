@@ -1,0 +1,100 @@
+--- a/include/rex/codegen/manifest.h
++++ b/include/rex/codegen/manifest.h
+@@ -29,6 +29,8 @@
+ struct BinaryConfig {
+   RecompilerConfig recompiler;
+   std::string guestPath;
++  // Explicit mutually exclusive DLL images; never applies to the entrypoint.
++  std::string overlayGroup;
+ };
+ 
+ /**
+--- a/src/codegen/manifest.cpp
++++ b/src/codegen/manifest.cpp
+@@ -135,6 +135,7 @@
+         return std::nullopt;
+       }
+       binary.guestPath = CanonicalizeModuleGuestPath(guest_path, manifest.projectName);
++      binary.overlayGroup = (*modTbl)["overlay_group"].value_or<std::string>("");
+       for (const auto& existing : manifest.modules) {
+         if (existing.guestPath == binary.guestPath) {
+           REXLOG_ERROR("Manifest [[modules]] duplicate guest_path '{}' (entry #{})",
+--- a/src/codegen/project_recompiler.cpp
++++ b/src/codegen/project_recompiler.cpp
+@@ -142,6 +142,7 @@
+     std::string guestPath;
+     bool isDll;
+     RecompilerConfig config;
++    std::string overlayGroup;
+   };
+ 
+   std::vector<ModuleEntry> allModules;
+@@ -149,7 +150,7 @@
+                         false, std::move(manifest_.entrypoint.recompiler)});
+   for (auto& mod : manifest_.modules) {
+     allModules.push_back({DeriveTargetNameFromFilePath(mod.recompiler.filePath), mod.guestPath,
+-                          true, std::move(mod.recompiler)});
++                          true, std::move(mod.recompiler), mod.overlayGroup});
+   }
+ 
+   if (!opts.targets.empty()) {
+@@ -261,7 +262,7 @@
+   ReportBinaryInfo(opts.reporter, entry_display_name,
+                    *runtime->kernel_state()->GetExecutableModule()->xex_module());
+ 
+-  std::vector<rex::system::object_ref<rex::system::UserModule>> dllModules;
++  std::vector<BinaryView> dllBinaries;
+   for (size_t i = 1; i < targeted.size(); ++i) {
+     const auto& dllConfig = targeted[i].config;
+     fs::path dllXexPath = configDir / dllConfig.filePath;
+@@ -289,7 +290,10 @@
+                      userMod->xex_module()->base_address());
+     auto dll_display_name = std::filesystem::path(targeted[i].config.filePath).filename().string();
+     ReportBinaryInfo(opts.reporter, dll_display_name, *userMod->xex_module());
+-    dllModules.push_back(std::move(userMod));
++    // Own the original bytes before another DLL can reuse this guest range.
++    dllBinaries.push_back(BinaryView::fromModule(*userMod->xex_module()));
++    runtime->kernel_state()->UnloadUserModule(userMod, false);
++    userMod->Unload();
+   }
+ 
+   struct ContextEntry {
+@@ -328,9 +332,8 @@
+     contexts.push_back({std::move(ctx), &targeted[0], std::move(entry_display)});
+   }
+ 
+-  for (size_t i = 0; i < dllModules.size(); ++i) {
+-    auto& userMod = dllModules[i];
+-    auto bv = BinaryView::fromModule(*userMod->xex_module());
++  for (size_t i = 0; i < dllBinaries.size(); ++i) {
++    auto bv = std::move(dllBinaries[i]);
+ 
+     auto dll_display = make_display_name(targeted[i + 1].config.filePath);
+     RecompilerConfig cfg = std::move(targeted[i + 1].config);
+@@ -403,6 +406,17 @@
+       uint32_t b_base = contexts[j].ctx.binary().baseAddress();
+       uint32_t b_end = b_base + contexts[j].ctx.binary().imageSize();
+       if (a_base < b_end && b_base < a_end) {
++        // Campaign DLLs may reuse one image range when loaded sequentially.
++        // Require explicit matching groups and identical image bases; retain
++        // rejection for entrypoint overlaps and every ungrouped conflict.
++        const auto& a = *contexts[i].module;
++        const auto& b = *contexts[j].module;
++        if (a.isDll && b.isDll && a_base == b_base && !a.overlayGroup.empty() &&
++            a.overlayGroup == b.overlayGroup) {
++          REXCODEGEN_TRACE("Mutually exclusive DLL overlay '{}' / '{}' group '{}'",
++                          a.targetName, b.targetName, a.overlayGroup);
++          continue;
++        }
+         return Err<void>(ErrorCategory::Validation,
+                          fmt::format("Module '{}' [{:08X}, {:08X}) overlaps '{}' [{:08X}, {:08X})",
+                                      contexts[i].module->targetName, a_base, a_end,
+@@ -528,7 +542,7 @@
+     dllTargetsData["project"] = manifest_.projectName;
+     auto& dllTargetsArray = dllTargetsData["dll_modules"];
+     dllTargetsArray = nlohmann::json::array();
+-    for (size_t i = 0; i < dllModules.size(); ++i) {
++    for (size_t i = 0; i < dllBinaries.size(); ++i) {
+       auto& mod = targeted[i + 1];
+       auto& dllCtx = contexts[i + 1].ctx;
+       nlohmann::json entry;

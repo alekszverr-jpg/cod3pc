@@ -72,3 +72,11 @@ Saint-Lô собирается как отдельная `cod3pc_saint_lo.dll` �
 Для прямого запуска с этим plugin: `--cod3_dof_strength=35`.
 Это настройка запуска, пункта в оригинальном игровом меню пока нет.
 Изменение силы требует перезапуска; удалять shader cache не нужно.
+
+Для двух DLL кампании с общим image base используется локальный патч SDK
+`rexglue-v0100-dll-overlay-groups.patch`. Build-CodegenOverlays.ps1 собирает
+CLI из закреплённого исходника 0.10.0; Build.ps1 вызывает его автоматически
+для Codegen/Diagnostic/Build. Используется rexgluerd.exe из ignored SDK out,
+а CMake получает этот же CLI через COD3_CODEGEN_EXECUTABLE. Установленный
+официальный SDK runtime сохраняется. В manifest overlay_group явно задаёт
+взаимоисключающие DLL; это расширение нашего проекта, не штатное поле 0.10.0.

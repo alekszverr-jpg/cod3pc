@@ -9,6 +9,8 @@ function Invoke-Logged([string]$Exe, [string[]]$Arguments, [string]$Log) {
 Push-Location $ProjectRoot
 try {
     if ($Stage -in @('Codegen','Diagnostic','Build')) {
+        & "$PSScriptRoot/Build-CodegenOverlays.ps1"
+        $script:Rexglue = Join-Path $ProjectRoot 'external/rexglue-sdk/out/win-amd64/RelWithDebInfo/rexgluerd.exe'
         $xex = Join-Path $ProjectRoot 'assets/game/default.xex'
         $expected = '2944EEC7D1231AD6798B5F9F8ADF8855F5E489296B22EAB45B27A577CEE23692'
         if (!(Test-Path -LiteralPath $xex) -or (Get-FileHash -LiteralPath $xex -Algorithm SHA256).Hash -ne $expected) {
@@ -18,6 +20,11 @@ try {
         $levelHash = '49E38A116B8F3C5E81C5206FD461496A6DA518CF9427843B38F2CAD33910EF2B'
         if (!(Test-Path -LiteralPath $levelXex) -or (Get-FileHash -LiteralPath $levelXex -Algorithm SHA256).Hash -ne $levelHash) {
             throw 'saint_lo.dll differs from reviewed SHA-256; reanalyze the level.'
+        }
+        $islandXex = Join-Path $ProjectRoot 'assets/game/sp/island/island.dll'
+        $islandHash = '679A5B58552ABCE1F8EDD80499A56F1CA4480E285734DC2719528400D8CD4A35'
+        if (!(Test-Path -LiteralPath $islandXex) -or (Get-FileHash -LiteralPath $islandXex -Algorithm SHA256).Hash -ne $islandHash) {
+            throw 'island.dll differs from reviewed SHA-256; reanalyze the level.'
         }
     }
     switch ($Stage) {
@@ -54,7 +61,7 @@ try {
             try {
                 Invoke-Logged $Rexglue @('codegen','cod3pc_manifest.toml','--ignore-stamp') 'build-validation.log'
                 $preset = 'win-amd64-' + $Configuration.ToLowerInvariant()
-                Invoke-Logged $CMake @('--preset',$preset,"-DCMAKE_PREFIX_PATH=$SdkPrefix") 'app-configure.log'
+                Invoke-Logged $CMake @('--preset',$preset,"-DCMAKE_PREFIX_PATH=$SdkPrefix", "-DCOD3_CODEGEN_EXECUTABLE=$Rexglue") 'app-configure.log'
                 Invoke-Logged $CMake @('--build','--preset',$preset,'--parallel','4') 'app-build.log'
                 if ($Configuration -eq 'RelWithDebInfo') {
                     & "$PSScriptRoot/Build-GpuGrass.ps1"

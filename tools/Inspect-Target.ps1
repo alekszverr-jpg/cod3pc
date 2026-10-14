@@ -1,5 +1,5 @@
 param([Parameter(Mandatory=$true)][ValidatePattern('^0x[0-9A-Fa-f]{8}$')][string]$Address,
-    [ValidateSet('default.xex','saint_lo.dll')][string]$Module = 'default.xex')
+    [ValidateSet('default.xex','saint_lo.dll','island.dll')][string]$Module = 'default.xex')
 . "$PSScriptRoot/Enter-Toolchain.ps1"
 $jdk = Get-ChildItem 'C:/Program Files/Eclipse Adoptium' -Directory | Where-Object Name -Like 'jdk-21*' | Select-Object -First 1
 if (!$jdk) { throw 'Temurin JDK 21 missing' }

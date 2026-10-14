@@ -1,0 +1,20 @@
+# island.dll SHA256 679a5b58552abce1f8edd80499a56f1ca4480e285734dc2719528400d8cd4a35
+# Ghidra: PPC context-save prologue and final interface wait call.
+
+[[midasm_hook]]
+address = 0x89182564
+name = "Cod3ReturnFromGuestYield"
+after_instruction = true
+return = true
+
+[[midasm_hook]]
+address = 0x89182694
+name = "Cod3ReturnFromGuestYield"
+after_instruction = true
+return = true
+
+[[midasm_hook]]
+address = 0x89182818
+name = "Cod3ReturnFromGuestYield"
+after_instruction = true
+return = true

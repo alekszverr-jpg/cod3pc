@@ -67,3 +67,38 @@ This is evidence to select Island for separate static recompilation, not evidenc
 of playable second-mission gameplay. Its native code is not in the manifest yet.
 The menu capture was restarted at the user's request: native-dof-retry.log,
 reports/dof-retry capture template. Saint-Lo must be selected for the DoF check.
+
+2026-10-14: Island added to the manifest and native build, pinned to SHA256
+679a5b58552abce1f8edd80499a56f1ca4480e285734dc2719528400d8cd4a35.
+Ghidra confirms entry 89226748 is the original tail branch to 892265F0.
+Island's own context-save/wait wrappers were checked in Ghidra; wait calls
+89182564, 89182694, 89182818 use the existing host continuation callback.
+The shared callback was extracted into level_yield.cpp and compiled separately
+into both DLLs. Island entry instrumentation forwards the complete PPC state.
+
+The stock pinned codegen rejects the overlapping Saint-Lo/Island ranges
+(logs/island-codegen-console.log). The authored SDK patch adds explicit
+overlay_group metadata: only DLLs with matching nonempty groups and identical
+bases may overlap. Entrypoint and ungrouped overlap validation remain active.
+Both campaign modules use cod3_campaign; this is a local SDK extension.
+
+Further review exposed another issue: stock project codegen loads every DLL
+before copying BinaryView data, so a later overlay can overwrite earlier code.
+The initial combined trial therefore changed Saint-Lo functions and failed its
+native link (island-build-console.log); it was not launched. The final patch
+copies each DLL's original bytes immediately, then unloads its analysis image
+before loading the next. Fresh strict codegen and native build passed
+(island-isolated-build-console.log), restoring Saint-Lo's original functions.
+Runtime still uses the original loader's sequential load/unload mechanism;
+the patch changes offline analysis, not live guest addresses or game logic.
+Island gameplay and a real Saint-Lo-to-Island transition await manual checking.
+
+Focused overlay validation passed: separate strict --target saint_lo and
+--target island runs produced byte-identical generated C++ to the combined
+run (34 and 33 files respectively). The full registry was regenerated after
+the check; private result reports/overlay-codegen-isolation.json. A manifest
+with different overlay groups was rejected with the original overlap error
+(logs/overlay-negative.log). Ghidra's strengthened context-save signature
+again found exactly the three Island wait calls. Six parser tests and two
+native continuation tests passed (logs/island-tests-console.log). Inventory
+still contains 15 genuine SP XEX modules; two are now declared, not fifteen.

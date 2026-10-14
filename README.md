@@ -16,8 +16,9 @@ ReXGlue runtime and Xenos GPU backend; it does not launch an emulator process.
 - Grass rendering has a verified compatibility correction.
 - Optional DoF strength is available; the 35% setting has been visually tested.
 
-Only `default.xex` and `saint_lo.dll` are currently recompiled. The original
-game requests `island.dll` next, but that module is not connected yet.
+`default.xex`, `saint_lo.dll`, and `island.dll` are currently recompiled.
+Island is the next module requested by the original game; its native integration
+is built, but second-mission gameplay and the transition still need testing.
 Remaining work includes campaign modules, spatial audio, and broader stability
 testing. Multiplayer is outside the initial scope.
 
