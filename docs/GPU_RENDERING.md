@@ -347,3 +347,11 @@ Six parser tests and two native tests passed (dof-setting-tests-console.log).
 Launch script PowerShell parsing passed. One ordinary-menu game was opened
 with -DofStrength 35 -ShaderDiagnostics; visual acceptance and translated
 DoF shader inspection are pending actual level rendering.
+
+Acceptance received in the same 35% run: the user confirms a sharper image
+with slight background blur. The emitted shader variant
+257C1107399A3162_0041400000000001 was dumped during level rendering; local
+fxc /dumpbin inspection confirms RGB contribution multiplied by 0.350000
+immediately before adding sharp RGB, with alpha still set to 1.
+Private evidence: reports/dof-strength-35-dxbc.txt, lines 415–418.
+The 35% mode is visually accepted; 100 remains the default original mode.
