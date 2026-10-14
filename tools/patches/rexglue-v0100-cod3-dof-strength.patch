@@ -1,0 +1,63 @@
+--- a/include/rex/graphics/pipeline/shader/dxbc_translator.h
++++ b/include/rex/graphics/pipeline/shader/dxbc_translator.h
+@@ -111,7 +111,7 @@
+     // If anything in this is structure is changed in a way not compatible with
+     // the previous layout, invalidate the pipeline storages by increasing this
+     // version number (0xYYYYMMDD)!
+-    static constexpr uint32_t kVersion = 0x20260226;
++    static constexpr uint32_t kVersion = 0x20261014;
+ 
+     enum class DepthStencilMode : uint32_t {
+       kNoModifiers,
+@@ -176,6 +176,9 @@
+       uint32_t dynamic_addressable_register_count : 8;
+       // Non-ROV - depth / stencil output mode.
+       DepthStencilMode depth_stencil_mode : 2;
++      // Optional CoD3 final DoF blend reduction, 0 preserves original output.
++      // Part of the translation key so different settings cannot share bytecode.
++      uint32_t cod3_dof_reduction : 7;
+     } pixel;
+ 
+     explicit Modification(uint64_t modification_value = 0) : value(modification_value) {
+--- a/src/graphics/d3d12/pipeline_cache.cpp
++++ b/src/graphics/d3d12/pipeline_cache.cpp
+@@ -27,6 +27,9 @@
+ #include <rex/assert.h>
+ #include <rex/chrono/clock.h>
+ #include <rex/cvar.h>
++
++REXCVAR_DEFINE_INT32(cod3_dof_strength, 100, "GPU",
++                    "CoD3 DoF blend strength percent (0 off, 100 original)");
+ #include <rex/dbg.h>
+ #include <rex/perf/counter.h>
+ #include <rex/filesystem.h>
+@@ -856,6 +859,10 @@
+           shader.GetDynamicAddressableRegisterCount(regs.Get<reg::SQ_PROGRAM_CNTL>().ps_num_reg)));
+ 
+   modification.pixel.interpolator_mask = interpolator_mask;
++  if (shader.ucode_data_hash() == UINT64_C(0x257C1107399A3162)) {
++    modification.pixel.cod3_dof_reduction =
++        uint32_t(100 - std::clamp(REXCVAR_GET(cod3_dof_strength), 0, 100));
++  }
+   modification.pixel.interpolators_centroid =
+       interpolator_mask & ~xenos::GetInterpolatorSamplingPattern(
+                               regs.Get<reg::RB_SURFACE_INFO>().msaa_samples,
+--- a/src/graphics/pipeline/shader/dxbc_translator_alu.cpp
++++ b/src/graphics/pipeline/shader/dxbc_translator_alu.cpp
+@@ -112,6 +112,16 @@
+         PopSystemTemp();
+       }
+       if (instr.vector_opcode == AluVectorOpcode::kMad) {
++        // Optional visual setting, limited to the identified final CoD3 DoF
++        // mix: sharp + (blurred - sharp) * weight. Keep depth and alpha intact.
++        const uint32_t reduction = GetDxbcShaderModification().pixel.cod3_dof_reduction;
++        if (reduction && current_shader().type() == xenos::ShaderType::kPixel &&
++            current_shader().ucode_data_hash() == UINT64_C(0x257C1107399A3162) &&
++            instr.vector_and_constant_result.storage_target == InstructionStorageTarget::kColor &&
++            instr.vector_and_constant_result.storage_index == 0) {
++          a_.OpMul(per_component_dest, dxbc::Src::R(system_temp_result_),
++                   dxbc::Src::LF(1.0f - float(reduction) * 0.01f));
++        }
+         a_.OpAdd(per_component_dest, dxbc::Src::R(system_temp_result_), operands[2]);
+       }
+     } break;

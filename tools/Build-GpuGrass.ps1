@@ -26,6 +26,14 @@ if ($LASTEXITCODE -ne 0) {
     & $Git -C $taskSdkRoot apply --ignore-whitespace $taskPatch
     if ($LASTEXITCODE -ne 0) { throw 'Applying grass shader patch failed.' }
 }
+$taskDofPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-cod3-dof-strength.patch'
+& $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskDofPatch 2>$null
+if ($LASTEXITCODE -ne 0) {
+    & $Git -C $taskSdkRoot apply --check --ignore-whitespace $taskDofPatch
+    if ($LASTEXITCODE -ne 0) { throw 'GPU source differs from the reviewed DoF setting patch.' }
+    & $Git -C $taskSdkRoot apply --ignore-whitespace $taskDofPatch
+    if ($LASTEXITCODE -ne 0) { throw 'Applying DoF setting patch failed.' }
+}
 & $CMake --build "$taskSdkRoot/out/build/win-amd64" --config RelWithDebInfo --target rexgpu-xenos --parallel 4 `
     2>&1 | Tee-Object "$ProjectRoot/logs/gpu-grass-build.log"
 if ($LASTEXITCODE -ne 0) { throw 'Grass test GPU build failed.' }

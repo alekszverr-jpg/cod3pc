@@ -2,7 +2,8 @@ param([int]$Seconds = 30, [switch]$Headless, [switch]$Interactive,
     [ValidateSet('Debug','RelWithDebInfo','Release')][string]$Configuration = 'RelWithDebInfo',
     [switch]$FirstMission, [switch]$SynchronousMemexport, [switch]$GpuCoherencyTest,
     [switch]$FullGpuReadback, [switch]$GrassShaderTest, [switch]$StockGpu,
-    [switch]$ShaderDiagnostics)
+    [switch]$ShaderDiagnostics,
+    [ValidateRange(0,100)][int]$DofStrength = 100)
 . "$PSScriptRoot/Enter-Toolchain.ps1"
 $app = Join-Path $ProjectRoot ('cod3pc/out/build/win-amd64-' + $Configuration.ToLowerInvariant() + '/cod3pc.exe')
 if (!(Test-Path -LiteralPath $app)) { throw 'Build cod3pc first' }
@@ -11,6 +12,9 @@ $logPath = Join-Path $ProjectRoot "logs/native-$stamp.log"
 $taskGpuPlugin = if ($StockGpu) { 'xenos' } elseif ($GpuCoherencyTest) { 'xenos-coherency' } else { 'xenos-grass' }
 if ($StockGpu -and ($GrassShaderTest -or $GpuCoherencyTest)) { throw 'Select one GPU backend.' }
 if ($GrassShaderTest -and $GpuCoherencyTest) { throw 'Select one GPU test plugin.' }
+if ($DofStrength -ne 100 -and $taskGpuPlugin -ne 'xenos-grass') {
+    throw 'Custom DoF strength requires the corrected xenos-grass plugin.'
+}
 if ($taskGpuPlugin -eq 'xenos-grass' -and $Configuration -ne 'RelWithDebInfo') {
     throw 'The corrected grass GPU plugin is currently staged only for RelWithDebInfo; use -StockGpu for another configuration.'
 }
@@ -37,12 +41,15 @@ if ($SynchronousMemexport) {
 if ($FullGpuReadback) {
     $arguments += @('--readback_resolve=full','--readback_memexport=true','--readback_memexport_fast=false')
 }
-if ($taskGpuPlugin -eq 'xenos-grass') { $arguments += '--cod3_grass_scalar_pair_fix=true' }
+if ($taskGpuPlugin -eq 'xenos-grass') {
+    $arguments += @('--cod3_grass_scalar_pair_fix=true', "--cod3_dof_strength=$DofStrength")
+}
 $windowStyle = if ($Interactive) { 'Normal' } else { 'Hidden' }
 $proc = Start-Process -FilePath $app -ArgumentList $arguments -WorkingDirectory (Split-Path $app) -WindowStyle $windowStyle -PassThru
 Write-Output "Started native cod3pc PID $($proc.Id)"
+Write-Output "DoF strength: $DofStrength% (100 = original)"
 New-Item -ItemType Directory -Force "$ProjectRoot/reports" | Out-Null
-[pscustomobject]@{pid=$proc.Id;log=$logPath;started=[DateTime]::UtcNow.ToString('o')} |
+[pscustomobject]@{pid=$proc.Id;log=$logPath;started=[DateTime]::UtcNow.ToString('o');dof_strength=$DofStrength} |
     ConvertTo-Json | Set-Content "$ProjectRoot/reports/native-last-run.json" -Encoding utf8
 if ($Seconds -gt 0) {
     if (!$proc.WaitForExit($Seconds * 1000)) {

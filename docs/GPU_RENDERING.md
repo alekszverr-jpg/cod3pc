@@ -323,3 +323,27 @@ No exact Xenia build/settings or equivalent-distance GPU capture were supplied.
 Do not treat the PS3 appearance alone as proof that this port's DoF is broken.
 An optional milder DoF setting would be a deliberate visual customization,
 unless a shared Xenos issue is established from original hardware evidence.
+
+2026-10-14: optional DoF strength added at the user's request. The D3D12
+translation patch applies only to pixel ucode 257C1107399A3162 and its final
+color-target MAD. It scales the blurred-minus-sharp contribution before adding
+sharp color: sharp + (blurred - sharp) * original_weight * strength/100.
+At 100 the additional operation is omitted; at 0 the final mix retains sharp
+color. It does not change the focus depth, fog, grass, or game assets.
+This is a visual customization, not a claim of Xbox 360 compatibility repair.
+
+Strength reduction is encoded in seven previously unused pixel-modification
+bits, so each setting gets a distinct shader/pipeline key. The cache version
+is bumped to 20261014; manual cache deletion is unnecessary. The SDK CVar
+cod3_dof_strength defaults to 100 and is clamped to 0..100. Run-Native.ps1
+exposes -DofStrength with validated range and rejects custom strength on
+plugins without this patch. Build-GpuGrass.ps1 reproducibly applies the
+authored tools/patches/rexglue-v0100-cod3-dof-strength.patch after the grass
+patch against the pinned SDK source. Staged plugin SHA256:
+351334FB5D30E7E51716EEEFF30E501CE271414C29E658F64A04534AE5932F77.
+
+Strict codegen and native/GPU build passed (logs/dof-setting-build-console.log).
+Six parser tests and two native tests passed (dof-setting-tests-console.log).
+Launch script PowerShell parsing passed. One ordinary-menu game was opened
+with -DofStrength 35 -ShaderDiagnostics; visual acceptance and translated
+DoF shader inspection are pending actual level rendering.
