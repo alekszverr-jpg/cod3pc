@@ -6,6 +6,7 @@
 !/logs/.gitkeep
 /cod3pc/generated/default/
 /cod3pc/generated/saint_lo/
+/cod3pc/generated/*/
 /cod3pc/out/
 /cod3pc/metadata/
 /cod3pc/assets/
@@ -20,5 +21,11 @@ __pycache__/
 *.exe
 *.dll
 *.pdb
+*.rdc
+*.dmp
+*.cod
+*.wbk
+*.wma
+*.wmv
 CMakeUserPresets.json
 *.local.ps1

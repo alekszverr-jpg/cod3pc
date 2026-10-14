@@ -1,13 +1,43 @@
-# Call of Duty 3 native Windows port research
+# cod3pc — Call of Duty 3 native Windows port
 
-Практический проект статической рекомпиляции Xbox 360 → Windows x64 на ReXGlue.
-Цель первого игрового этапа — оригинальное меню, затем одиночная кампания.
-Текущий подтверждённый результат и ограничения: [docs/STATUS.md](docs/STATUS.md).
-План этапов и критерии готовности: [docs/ROADMAP.md](docs/ROADMAP.md).
+An unofficial, experimental native Windows x64 port of the **Xbox 360
+single-player version** of Call of Duty 3, built with static recompilation
+using **ReXGlue 0.10.0**. The application runs recompiled game logic with the
+ReXGlue runtime and Xenos GPU backend; it does not launch an emulator process.
 
-Открывайте эту папку в VS Code. Полная IDE Visual Studio не требуется;
-компилятор, MSVC и Windows SDK предоставляют отдельно установленные Build Tools.
-Команды VS Code: Terminal → Run Task → `cod3: build`.
+**Early development. The full campaign is not supported yet.**
+
+## Current progress
+
+- Original menu, Saint-Lo training and gameplay run in the native application.
+- The first mission has been completed in manual testing; campaign progression
+  remains unfinished and this is not a stability guarantee.
+- A Saint-Lo checkpoint has been saved and restored after restarting.
+- Grass rendering has a verified compatibility correction.
+- Optional DoF strength is available; the 35% setting has been visually tested.
+
+Only `default.xex` and `saint_lo.dll` are currently recompiled. The original
+game requests `island.dll` next, but that module is not connected yet.
+Remaining work includes campaign modules, spatial audio, and broader stability
+testing. Multiplayer is outside the initial scope.
+
+See the [verified status](docs/STATUS.md), [roadmap](docs/ROADMAP.md),
+and [known blockers](docs/BLOCKERS.md). Detailed development notes are currently
+mostly in Russian.
+
+## Building locally
+
+You need Windows x64, MSVC/Windows SDK Build Tools, Python, and the pinned
+ReXGlue toolchain. VS Code can be used as the editor; the full Visual Studio
+IDE is not required. This repository is a development project, not a packaged
+end-user release.
+
+You must provide and extract your own Xbox 360 game files locally into
+`assets/game/`, preserving the original directory structure. Reviewed function
+boundaries are pinned to the executable hashes documented in the configs.
+
+Follow the [build instructions](docs/BUILDING.md) for toolchain setup before
+running:
 
 ```powershell
 ./tools/Check-Environment.ps1
@@ -15,12 +45,32 @@
 ./tools/Build.ps1 -Stage Analyze
 ./tools/Build.ps1 -Stage Codegen
 ./tools/Build.ps1 -Stage Build
+./tools/Run-Native.ps1 -Seconds 0 -Interactive
 ```
 
-Ресурсы собственной копии хранятся в `assets/game/` с исходной структурой.
-Имеющийся GoD-контейнер `415607E1/00007000/2E97F145D2D59518C2F4`
-извлечён локально. Игровые данные, generated C++, бинарники, логи и базы
-Ghidra исключены из Git. Никакие игровые файлы не отправлялись на серверы.
+For softer depth of field:
 
-См. [сборку](docs/BUILDING.md), [исследование](docs/RESEARCH.md),
-[архитектуру](docs/ARCHITECTURE.md), [тестирование](docs/TESTING.md).
+```powershell
+./tools/Run-Native.ps1 -Seconds 0 -Interactive -DofStrength 35
+```
+
+The range is 0–100; 100 preserves the original effect and is the default.
+Continue from a checkpoint using the original game menu.
+
+## Repository contents
+
+This repository contains project source, configuration, SDK patches, tools,
+tests, and documentation. **No game assets, original executables, recompiled
+game code, saves, GPU captures, or game binaries are distributed here.**
+Generated code and local diagnostics remain ignored. Build and analyze the
+game locally; do not upload proprietary game files to issues or remote builds.
+
+ReXGlue boilerplate and SDK patches retain their upstream notices; see
+[third-party acknowledgements](docs/THIRD_PARTY.md) and
+[the SDK license](licenses/rexglue-sdk.txt).
+
+This project is not affiliated with or endorsed by Activision or Treyarch.
+Call of Duty and related names belong to their respective owners.
+
+[Architecture](docs/ARCHITECTURE.md) · [Research](docs/RESEARCH.md) ·
+[Testing](docs/TESTING.md)
