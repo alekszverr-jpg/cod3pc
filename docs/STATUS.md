@@ -1,5 +1,17 @@
 # Состояние проекта
 
+2026-10-14: добавлен отдельный debug selector: ListLevels / DebugMission /
+DryRun, собственный userdata на миссию, защита от дубликата процесса.
+Прямой debug-запуск Island через devmap подтвердил исходную загрузку DLL и
+видимый уровень с оружием/HUD. 12 tests, strict codegen/build прошли.
+Основной save не редактируется. См. LEVEL_DEBUG.md. В roadmap добавлены
+PC-возможности по исследованию Project 1944; чужой код не перенесён.
+
+2026-10-14: пользователь подтвердил загрузку Island и управление персонажем.
+native-20261014-151651-140.log: исходный запрос island.dll, native Island entry
+89226748 с reason=1 и result=1, LOAD_RESULT=0. Это подтверждает вторую миссию
+в gameplay; полное прохождение Island и переход из Saint-Lo ещё проверяются.
+
 2026-10-14: подключена native Island DLL (вторая объявленная SP DLL из 15).
 Её hash, entrypoint и три script wait hooks проверены по оригинальному модулю.
 Исправлена offline-генерация модулей с общим image base: явная overlay_group

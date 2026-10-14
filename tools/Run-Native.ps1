@@ -3,9 +3,25 @@ param([int]$Seconds = 30, [switch]$Headless, [switch]$Interactive,
     [switch]$FirstMission, [switch]$SynchronousMemexport, [switch]$GpuCoherencyTest,
     [switch]$FullGpuReadback, [switch]$GrassShaderTest, [switch]$StockGpu,
     [switch]$ShaderDiagnostics,
-    [ValidateRange(0,100)][int]$DofStrength = 100)
+    [ValidateRange(0,100)][int]$DofStrength = 100,
+    [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugMission,
+    [switch]$ListLevels, [switch]$DryRun)
 . "$PSScriptRoot/Enter-Toolchain.ps1"
 $app = Join-Path $ProjectRoot ('cod3pc/out/build/win-amd64-' + $Configuration.ToLowerInvariant() + '/cod3pc.exe')
+if ($DebugMission -and $FirstMission) { throw 'Use DebugMission or FirstMission, not both.' }
+if ($DebugMission -or $ListLevels) {
+    $taskLevelsJson = & $Python "$PSScriptRoot/list_debug_levels.py" --game-root "$ProjectRoot/assets/game" `
+        --manifest "$ProjectRoot/cod3pc/cod3pc_manifest.toml" --build-root (Split-Path $app)
+    if ($LASTEXITCODE -ne 0) { throw 'Debug level inventory failed.' }
+    $taskLevels = @($taskLevelsJson | ConvertFrom-Json)
+    if ($ListLevels) {
+        $taskLevels | Select-Object level,map,kind,declared,native,ready | Format-Table -AutoSize
+        return
+    }
+    $taskSelectedLevel = @($taskLevels | Where-Object { $_.level -ceq $DebugMission })
+    if ($taskSelectedLevel.Count -ne 1) { throw "Unknown debug mission '$DebugMission'; use -ListLevels." }
+    if (!$taskSelectedLevel[0].ready) { throw "Mission '$DebugMission' has no correctly mapped native DLL in this build." }
+}
 if (!(Test-Path -LiteralPath $app)) { throw 'Build cod3pc first' }
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
 $logPath = Join-Path $ProjectRoot "logs/native-$stamp.log"
@@ -21,12 +37,15 @@ if ($taskGpuPlugin -eq 'xenos-grass' -and $Configuration -ne 'RelWithDebInfo') {
 if ($GpuCoherencyTest -and $Configuration -ne 'RelWithDebInfo') {
     throw 'The GPU coherency test plugin is currently staged only for RelWithDebInfo.'
 }
+$taskUserRoot = Join-Path $ProjectRoot 'userdata'
+if ($DebugMission) { $taskUserRoot = Join-Path $taskUserRoot "debug-levels/$DebugMission" }
 $arguments = @('--gpu_plugin',$taskGpuPlugin,'--game_data_root',('"{0}"' -f "$ProjectRoot/assets/game"),
-    '--user_data_root',('"{0}"' -f "$ProjectRoot/userdata"),
+    '--user_data_root',('"{0}"' -f $taskUserRoot),
     '--log_file',('"{0}"' -f $logPath),'--log_level','info')
 if ($Headless) { $arguments += '--headless' }
 if ($Interactive) { $arguments += @('--mnk_mode','true') }
 if ($FirstMission) { $arguments += @('--cl','"+spmap saint_lo"') }
+if ($DebugMission) { $arguments += @('--cl', ('"+devmap {0}"' -f $taskSelectedLevel[0].map)) }
 if ($ShaderDiagnostics) {
     $taskShaderDump = Join-Path $ProjectRoot 'reports/shader-diagnostics'
     New-Item -ItemType Directory -Force $taskShaderDump | Out-Null
@@ -45,11 +64,25 @@ if ($taskGpuPlugin -eq 'xenos-grass') {
     $arguments += @('--cod3_grass_scalar_pair_fix=true', "--cod3_dof_strength=$DofStrength")
 }
 $windowStyle = if ($Interactive) { 'Normal' } else { 'Hidden' }
+if ($DryRun) {
+    [pscustomobject]@{executable=$app;arguments=$arguments;debug_mission=$DebugMission;user_data_root=$taskUserRoot} |
+        ConvertTo-Json -Depth 3
+    return
+}
+if (@(Get-Process -Name cod3pc -ErrorAction SilentlyContinue).Count -gt 0) {
+    throw 'cod3pc is already running. Close the existing game before launching another instance.'
+}
+if ($DebugMission) {
+    # Explicit debug launches bypass progression with the game's own command.
+    # Isolate all autosaves, profiles and caches from the normal campaign.
+    New-Item -ItemType Directory -Force $taskUserRoot | Out-Null
+    Write-Output "Level debug: $DebugMission; isolated profile: $taskUserRoot"
+}
 $proc = Start-Process -FilePath $app -ArgumentList $arguments -WorkingDirectory (Split-Path $app) -WindowStyle $windowStyle -PassThru
 Write-Output "Started native cod3pc PID $($proc.Id)"
 Write-Output "DoF strength: $DofStrength% (100 = original)"
 New-Item -ItemType Directory -Force "$ProjectRoot/reports" | Out-Null
-[pscustomobject]@{pid=$proc.Id;log=$logPath;started=[DateTime]::UtcNow.ToString('o');dof_strength=$DofStrength} |
+[pscustomobject]@{pid=$proc.Id;log=$logPath;started=[DateTime]::UtcNow.ToString('o');dof_strength=$DofStrength;debug_mission=$DebugMission;user_data_root=$taskUserRoot} |
     ConvertTo-Json | Set-Content "$ProjectRoot/reports/native-last-run.json" -Encoding utf8
 if ($Seconds -gt 0) {
     if (!$proc.WaitForExit($Seconds * 1000)) {

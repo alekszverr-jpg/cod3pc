@@ -102,3 +102,10 @@ with different overlay groups was rejected with the original overlap error
 again found exactly the three Island wait calls. Six parser tests and two
 native continuation tests passed (logs/island-tests-console.log). Inventory
 still contains 15 genuine SP XEX modules; two are now declared, not fifteen.
+
+Manual result: the user confirmed that Island loaded and the character is
+controllable in native-20261014-151651-140.log. The log also confirms native
+Island entry and successful original load. A separate debug-profile devmap
+launch later showed the Island level with HUD/weapon and successful module
+entry in native-20261014-153521-337.log. Full mission completion and the actual
+Saint-Lo reboot/transition path remain unverified. See LEVEL_DEBUG.md.

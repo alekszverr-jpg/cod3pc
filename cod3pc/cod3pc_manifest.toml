@@ -13,6 +13,7 @@ includes = ["configs/functions.toml", "configs/ghidra_thunks.toml", "configs/scr
 [[modules]]
 file_path = "../assets/game/sp/saint_lo/saint_lo.dll"
 guest_path = "sp/saint_lo/saint_lo.dll"
+debug_map = "saint_lo"
 overlay_group = "cod3_campaign"
 out_directory_path = "generated/saint_lo"
 includes = ["configs/saint_lo_yields.toml", "configs/saint_lo_functions.toml"]
@@ -20,6 +21,7 @@ includes = ["configs/saint_lo_yields.toml", "configs/saint_lo_functions.toml"]
 [[modules]]
 file_path = "../assets/game/sp/island/island.dll"
 guest_path = "sp/island/island.dll"
+debug_map = "island"
 overlay_group = "cod3_campaign"
 out_directory_path = "generated/island"
 includes = ["configs/island_yields.toml"]

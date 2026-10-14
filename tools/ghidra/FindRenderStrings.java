@@ -13,6 +13,7 @@ public class FindRenderStrings extends GhidraScript {
                ((data[offset+2]&255)<<8)|(data[offset+3]&255);
     }
     public void run() throws Exception {
+        String[] queries = getScriptArgs();
         MemoryBlock code=currentProgram.getMemory().getBlock(".text");
         byte[] instructions=new byte[(int)code.getSize()];
         currentProgram.getMemory().getBytes(code.getStart(),instructions);
@@ -26,8 +27,13 @@ public class FindRenderStrings extends GhidraScript {
                 if (i - start >= 3 && i - start < 300) {
                     String s = new String(bytes, start, i-start, StandardCharsets.ISO_8859_1);
                     String lower = s.toLowerCase(Locale.ROOT);
-                    if (lower.contains("focus") || lower.contains("depth of") ||
-                            (lower.contains("dof") && !lower.contains("offset") && !lower.contains("ofs"))) {
+                    boolean matches = lower.contains("focus") || lower.contains("depth of") ||
+                            (lower.contains("dof") && !lower.contains("offset") && !lower.contains("ofs"));
+                    if (queries.length > 0) {
+                        matches = false;
+                        for (String query : queries) if (lower.contains(query.toLowerCase(Locale.ROOT))) matches = true;
+                    }
+                    if (matches) {
                         boolean ascii = true;
                         for (int j=start; j<i; ++j) if (bytes[j]<32 || bytes[j]>126) ascii=false;
                         if (ascii) {

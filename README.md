@@ -17,8 +17,8 @@ ReXGlue runtime and Xenos GPU backend; it does not launch an emulator process.
 - Optional DoF strength is available; the 35% setting has been visually tested.
 
 `default.xex`, `saint_lo.dll`, and `island.dll` are currently recompiled.
-Island is the next module requested by the original game; its native integration
-is built, but second-mission gameplay and the transition still need testing.
+Island has also loaded successfully with player control in manual testing.
+Full second-mission completion and the campaign transition still need testing.
 Remaining work includes campaign modules, spatial audio, and broader stability
 testing. Multiplayer is outside the initial scope.
 
@@ -57,6 +57,17 @@ For softer depth of field:
 
 The range is 0–100; 100 preserves the original effect and is the default.
 Continue from a checkpoint using the original game menu.
+
+For level testing with a separate save profile:
+
+```powershell
+./tools/Run-Native.ps1 -ListLevels
+./tools/Run-Native.ps1 -Seconds 0 -Interactive -DebugMission island -DofStrength 35
+```
+
+Only integrated native modules can be selected; currently Saint-Lo and Island.
+Debug launches use the original engine's `devmap` command and isolated data
+under `userdata/debug-levels/`. Normal campaign saves are not modified.
 
 ## Repository contents
 

@@ -80,3 +80,23 @@ CLI из закреплённого исходника 0.10.0; Build.ps1 выз�
 а CMake получает этот же CLI через COD3_CODEGEN_EXECUTABLE. Установленный
 официальный SDK runtime сохраняется. В manifest overlay_group явно задаёт
 взаимоисключающие DLL; это расширение нашего проекта, не штатное поле 0.10.0.
+
+Debug-запуск уровня:
+
+```powershell
+./tools/Run-Native.ps1 -ListLevels
+./tools/Run-Native.ps1 -Seconds 0 -Interactive -DebugMission island -DofStrength 35
+```
+
+`ready=True` означает наличие native DLL и проверенного debug_map в manifest.
+Сейчас готовы saint_lo и island; остальные XEX показываются в списке и
+станут доступны после их интеграции. Credits отмечены отдельно. Имена в
+списке не устанавливают порядок миссий. Имя map может отличаться от DLL,
+поэтому debug_map задаётся явно и проверяется по оригинальному образу.
+
+DebugMission передаёт исходному движку `+devmap <map>` и использует отдельный
+user_data_root: `userdata/debug-levels/<mission>/`. Основной campaign save
+не редактируется; autosaves/debug caches остаются в отдельном профиле.
+`-DryRun` печатает параметры без запуска и создания профиля. Обычный запуск
+без DebugMission остаётся через меню с основным userdata. FirstMission —
+старый отдельный параметр; совместно с DebugMission он отклоняется.
