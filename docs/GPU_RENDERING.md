@@ -355,3 +355,21 @@ fxc /dumpbin inspection confirms RGB contribution multiplied by 0.350000
 immediately before adding sharp RGB, with alpha still set to 1.
 Private evidence: reports/dof-strength-35-dxbc.txt, lines 415–418.
 The 35% mode is visually accepted; 100 remains the default original mode.
+
+## Open: lantern glow visible through opaque geometry, 2026-10-15
+
+User supplied D:/Screenshots/cod3pc_2026_10_15_17_02_59_205.png and
+cod3pc_2026_10_15_17_03_20_079.png. Small yellow glow spots appear over the
+wooden floor/opaque interior geometry; the second image shows the lantern and
+another spot over the stone wall. This looks like a glow/flare visibility issue,
+but screenshots do not establish the responsible draw or a missing shadow.
+Do not treat depth testing, depth sampling or occlusion-query failure as a
+confirmed cause. The original Xbox 360 behavior for this scene is not compared.
+
+Available local RenderDoc captures predate these screenshots (latest Oct13
+DoF captures), so they cannot identify the defective draw here. During the
+next diagnostic reproduction near the saved Saint-Lo endpoint, capture the
+lantern visible and then fully occluded by the same wall. Inspect the draw's
+depth state/attachment, any sampled depth and visibility-query inputs/results;
+compare the original scene if needed. Preserve the actual lamp lighting and
+glow, rather than globally disabling an effect. No rendering change yet.
