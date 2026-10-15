@@ -109,3 +109,29 @@ Island entry and successful original load. A separate debug-profile devmap
 launch later showed the Island level with HUD/weapon and successful module
 entry in native-20261014-153521-337.log. Full mission completion and the actual
 Saint-Lo reboot/transition path remain unverified. See LEVEL_DEBUG.md.
+
+## Title reboot investigation, 2026-10-15
+
+Independent Ghidra inspection against default.xex SHA-256
+2944eec7d1231ad6798b5f9f8adf8855f5e489296b22eab45b27a577cee23692:
+825146EC and 82514890 call SetLaunchData import 825787DC after loading r4
+with 0x298 (664); subsequent original calls at 8251470C and 825148B8
+target XLaunchNewImage wrapper 82343928. Startup 823FCCE0 calls GetLaunchDataSize,
+823FCCFC calls GetLaunchData, and 823FCD28 copies 664 bytes into game state.
+Private evidence: logs/ghidra-0x825146DC.log, logs/ghidra-0x82514880.log,
+logs/ghidra-0x823FCCE0.log.
+
+Pinned SDK src/kernel/xam/xam_info.cpp stores launch data in XamModule;
+LaunchTitle sets launch_path/flags and calls TerminateTitle without host
+relaunch. This supports the reboot hypothesis from Project 1944, but current
+runtime evidence does not yet connect the user's mission-end exit to it.
+New hooks log Set/Get statuses and sizes, plus SDK loader metadata at main
+guest-thread exit. No state contents are dumped, no arguments changed,
+and no shutdown suppressed. No foreign implementation was copied.
+
+Validation: Build.ps1 -Stage Build (strict --ignore-stamp) and -Stage Tests
+passed; logs/transition-launch-data-{build,tests}-console.log. Sandboxed tests
+failed with WinError 5 writing temporary folders; authorized host run passed
+all 10 parser and two native tests. First sandboxed build stalled before
+codegen and was stopped; host build passed. Existing BaseHeap release warning
+persists after successful codegen.

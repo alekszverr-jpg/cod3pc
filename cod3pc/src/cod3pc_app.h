@@ -9,6 +9,7 @@
 #include <rex/logging.h>
 
 void InstallCod3CrashTrace();
+void Cod3TraceLoaderState();
 
 class Cod3pcApp : public rex::ReXApp {
  public:
@@ -38,6 +39,12 @@ class Cod3pcApp : public rex::ReXApp {
         rex::cvar::GetFlagByName("readback_memexport_fast"),
         rex::cvar::GetFlagByName("readback_resolve"),
         rex::cvar::GetFlagByName("clear_memory_page_state"));
+  }
+
+  void OnGuestThreadExit(rex::system::XThread*) override {
+    // Observe the SDK's final launch request before its normal UI shutdown.
+    // Never convert an ordinary exit into a relaunch or suppress termination.
+    Cod3TraceLoaderState();
   }
 
   // Override virtual hooks for customization:

@@ -1,5 +1,11 @@
 # Состояние проекта
 
+2026-10-15: исследован original title reboot для перехода кампании.
+Ghidra независимо подтвердила две записи 664 байт launch data и startup read.
+Добавлены read-only hooks размеров/статусов и лог loader state при завершении
+главного guest thread. Strict codegen/build и 12 tests прошли. Поведение
+перехода не изменено; нужен реальный повтор завершения Saint-Lo.
+
 2026-10-14: добавлен отдельный debug selector: ListLevels / DebugMission /
 DryRun, собственный userdata на миссию, защита от дубликата процесса.
 Прямой debug-запуск Island через devmap подтвердил исходную загрузку DLL и

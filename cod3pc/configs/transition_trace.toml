@@ -24,6 +24,44 @@ address = 0x82343E9C
 name = "Cod3TraceLoadImageResult"
 registers = ["r3"]
 
+# Independent Ghidra checks 2026-10-15:
+# logs/ghidra-0x825146DC.log, ghidra-0x82514880.log, ghidra-0x823FCCE0.log.
+# Both original write paths pass 0x298 bytes to import 825787DC.
+[[midasm_hook]]
+address = 0x825146EC
+name = "Cod3TraceSetLaunchData"
+registers = ["r3", "r4"]
+
+[[midasm_hook]]
+address = 0x825146F0
+name = "Cod3TraceSetLaunchDataResult"
+registers = ["r3"]
+
+[[midasm_hook]]
+address = 0x82514890
+name = "Cod3TraceSetLaunchData"
+registers = ["r3", "r4"]
+
+[[midasm_hook]]
+address = 0x82514894
+name = "Cod3TraceSetLaunchDataResult"
+registers = ["r3"]
+
+[[midasm_hook]]
+address = 0x823FCCE4
+name = "Cod3TraceGetLaunchSizeResult"
+registers = ["r3"]
+
+[[midasm_hook]]
+address = 0x823FCCFC
+name = "Cod3TraceGetLaunchData"
+registers = ["r4"]
+
+[[midasm_hook]]
+address = 0x823FCD00
+name = "Cod3TraceGetLaunchDataResult"
+registers = ["r3"]
+
 [[midasm_hook]]
 address = 0x82343E14
 name = "Cod3TraceUnloadImage"
