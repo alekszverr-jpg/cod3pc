@@ -1,5 +1,16 @@
 # Состояние проекта
 
+2026-10-15: подтверждён настоящий переход Saint-Lo → Island. Пользователь
+завершил Saint-Lo с восстановленного checkpoint saint_lo_final и подтвердил
+загрузку/управление в Island после автоматического native relaunch.
+native-20261015-165906-292.log: SetLaunchData 664 байта, LaunchTitle,
+RELAUNCH_QUEUED; successor -relaunch.log: RESTORED 664, original GetLaunchData
+успешен, Island entry 89226748 reason=1/result=1, LOAD_RESULT=0, без FATAL.
+Старый PID 20020 завершён, работает только новый PID 34696. Отдельный профиль
+и DoF 35 сохранены; основной прогресс Island и снимок не затронуты.
+Переход проверен один раз; полное прохождение Island и остальные SP DLL
+остаются открытыми. См. TITLE_RELAUNCH.md.
+
 2026-10-15: сохранён снимок saint_lo_final из профиля saint_lo_end, файлы
 проверены по SHA-256 и восстановлены в saint_lo_repeat_01. Лог предыдущего
 запуска впервые подтвердил SetLaunchData=664, LaunchTitle default.xex и SDK

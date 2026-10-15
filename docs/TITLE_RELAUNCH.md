@@ -1,5 +1,16 @@
 # Native title relaunch
 
+Verified runtime result, 2026-10-15: user completed Saint-Lo from the restored
+saint_lo_final checkpoint and confirmed Island loaded with working player
+control after native relaunch. Parent native-20261015-165906-292.log records
+SetLaunchData/LaunchTitle at 17:04:25.622 host time and queued handoff at
+17:04:25.830. Successor native-20261015-165906-292-relaunch.log records
+RESTORED 664 at 17:04:28.574, original GetLaunchData success at 17:04:28.634,
+Island entry reason=1/result=1 and LOAD_RESULT=0 at 17:05:36.016. No FATAL
+was found. CIM confirms only successor PID 34696 exists; parent PID 20020
+has exited. Userdata remained saint_lo_repeat_01, DoF remained 35. This is one
+verified campaign transition, not full Island completion or campaign coverage.
+
 Runtime update 2026-10-15: native-20261015-131421-759.log at 13:48:14 host time
 records SetLaunchData success (664 bytes), LaunchTitle default.xex flags 0,
 then the resolved path \Device\Harddisk0\Partition1\default.xex. The initial
@@ -44,8 +55,8 @@ The successor verifies all 664 synthetic bytes and waits for worker exit; the
 worker checks that success cannot be signaled while it remains alive.
 Private logs: title-relaunch-build-console.log, title-relaunch-tests-console.log.
 
-Actual original-game reboot and end-of-Saint-Lo transition still need runtime
-confirmation. A successful transport test does not prove campaign behavior.
+The transport-only result was later followed by the real original-game
+Saint-Lo transition recorded above; it is no longer just a transport test.
 Thirteen SP modules remain unintegrated, so relaunch alone does not enable the
 entire campaign. No code from Project 1944 was copied.
 
