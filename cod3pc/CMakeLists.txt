@@ -25,6 +25,8 @@ set(COD3PC_SOURCES
     src/runtime/transition_trace.cpp
     src/runtime/title_handoff.cpp
     src/runtime/title_relaunch.cpp
+    src/runtime/thread_exit_probe.cpp
+    src/runtime/title_thread_trace.cpp
     src/runtime/dof_trace.cpp
 )
 
@@ -68,4 +70,8 @@ if(BUILD_TESTING)
     rexglue_apply_target_settings(cod3_handoff_test)
     add_test(NAME native_title_handoff COMMAND cod3_handoff_test)
     set_tests_properties(native_title_handoff PROPERTIES TIMEOUT 15)
+    add_executable(cod3_thread_exit_test ../tests/thread_exit_probe_test.cpp src/runtime/thread_exit_probe.cpp)
+    rexglue_apply_target_settings(cod3_thread_exit_test)
+    add_test(NAME native_thread_exit_probe COMMAND cod3_thread_exit_test)
+    set_tests_properties(native_thread_exit_probe PROPERTIES TIMEOUT 10)
 endif()

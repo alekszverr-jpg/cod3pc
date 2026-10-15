@@ -13,6 +13,7 @@ void Cod3TraceLoaderState();
 void PrepareCod3TitleHandoff();
 void RestoreCod3TitleHandoff();
 void RelaunchCod3TitleIfRequested();
+void ReportCod3TitleThreads();
 
 class Cod3pcApp : public rex::ReXApp {
  public:
@@ -48,6 +49,7 @@ class Cod3pcApp : public rex::ReXApp {
 
   void OnGuestThreadExit(rex::system::XThread*) override {
     Cod3TraceLoaderState();
+    ReportCod3TitleThreads();
     RelaunchCod3TitleIfRequested();
   }
 

@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <rex/kernel/xam/module.h>
+#include "thread_exit_probe.h"
 
 namespace {
 std::string GuestLoaderPath(uint32_t address) {
@@ -49,6 +50,7 @@ void Cod3TraceLaunchTitle(PPCRegister& r3, PPCRegister& r4) {
   REXCPU_INFO("COD3_TRANSITION_LAUNCH_TITLE path='{}' flags={:08X}",
       GuestLoaderPath(r3.u32), r4.u32);
   Cod3TraceLoaderState();
+  CaptureCod3TitleThreads();
 }
 void Cod3TraceStartupTerminate() {
   REXCPU_INFO("COD3_TRANSITION_TERMINATE origin=startup_check");

@@ -1,5 +1,11 @@
 # Состояние проекта
 
+2026-10-15: добавлен первый этап бесшовного lifecycle — наблюдение реального
+завершения native guest threads через дублированные Windows handles перед
+LaunchTitle и после выхода main guest thread. Strict codegen/build и 14 tests
+прошли. Это пока диагностика, не безопасный in-process reset: поздние потоки
+и GPU/audio workers требуют отдельного барьера. См. SEAMLESS_TRANSITIONS.md.
+
 2026-10-15: пользователь изменил критерий перехода: одно окно и процесс,
 без native relaunch. Это ещё не реализовано. Исследованы ограничения pinned
 SDK shutdown: возможные straggler threads и _Exit при закрытии окна.

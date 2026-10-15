@@ -1,5 +1,25 @@
 # Campaign transition without application restart
 
+2026-10-15 implementation step: authored thread_exit_probe duplicates native
+Windows thread handles from retained SDK XObject::Thread objects immediately
+before the original LaunchTitle import. On main guest-thread exit it waits up
+to 1000 ms for the *native* handles, then logs pending guest/native IDs and
+wait errors. It does not use running_ or the guest signal as proof of host
+exit. The duplicated handles survive SDK handle release and registry removal.
+It neither terminates threads nor suppresses normal exit/relaunch.
+
+This is an observation step, not the complete teardown barrier: threads created
+after the snapshot and audio/GPU host workers are not covered. The next SDK
+change must seal guest thread creation and retain registered workers through
+actual exit before any memory reset. A zero pending count in this probe alone
+must not enable Runtime destruction.
+
+Strict codegen/build and 14 tests passed (10 Python, four native), including a
+real Windows worker held on an event, timeout detection, closing its original
+handle, signaling it and observing actual exit through the duplicate. Invalid
+handle duplication is rejected. Private logs:
+logs/thread-exit-probe-{build,tests}-console.log. Runtime observation pending.
+
 User requirement, 2026-10-15: preserve one native game window and one cod3pc
 process across mission transitions. The verified process handoff is temporary;
 it does not meet this requirement. Resource loading and the original loading
