@@ -1,5 +1,13 @@
 # Campaign transition without application restart
 
+External-source comparison 2026-10-15: current CoD3Recomp and Project 1944 both
+use CreateProcessW for title reboot, not a same-process Runtime reset. Project
+1944 retains the old frame/window until a successor game-loop readiness event
+(800-ms delay), which can hide the desktop gap but still overlaps processes.
+This does not meet our explicit same-process criterion. See
+[COD3_TRANSITION_COMPARISON.md](COD3_TRANSITION_COMPARISON.md) for pinned source
+links, behavior and limitations; no code was imported or runtime changed.
+
 ## Runtime blocker and worker-exit experiment, 2026-10-15
 
 Experiment result: native-20261015-173618-681.log at 17:40:17.252 host time
