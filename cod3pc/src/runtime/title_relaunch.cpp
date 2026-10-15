@@ -13,6 +13,7 @@ REXCVAR_DEFINE_STRING(cod3_relaunch_parent, "", "Debug", "Internal previous-titl
 namespace {
 std::vector<uint8_t> pending_launch_data;
 }
+void ResetCod3WorkerExit();
 
 void PrepareCod3TitleHandoff() {
   try {
@@ -26,6 +27,7 @@ void PrepareCod3TitleHandoff() {
 }
 
 void RestoreCod3TitleHandoff() {
+  ResetCod3WorkerExit();
   if (pending_launch_data.empty()) return;
   auto xam = rex::system::kernel_state()->GetKernelModule<rex::kernel::xam::XamModule>("xam.xex");
   // Use the same host LoaderData storage as the pinned Set/GetLaunchData APIs.

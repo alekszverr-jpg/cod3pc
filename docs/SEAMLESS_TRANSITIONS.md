@@ -1,5 +1,40 @@
 # Campaign transition without application restart
 
+## Runtime blocker and worker-exit experiment, 2026-10-15
+
+native-20261015-172035-847.log records 13 captured guest threads, no capture
+errors, and three still alive after 1000 ms: guest 7/native 39132,
+guest 8/native 20844, guest 9/native 23476. The process handoff still worked;
+the successor read all 664 bytes. This directly disproves assuming a completed
+main guest thread means all guest workers have exited.
+
+LLDB live attach failed to connect to its local debug server (::1:49729).
+A separate private MiniDumpWithThreadInfo of the successor was analyzed offline
+without debugger attachment. logs/island-worker-dump-stacks.log contains job
+workers in 8212A780 -> 8212A520, some waiting, others dispatching jobs. This
+successor sample alone does not map the three old native IDs to those stacks.
+
+The optional authored `-CooperativeWorkerExit` experiment is disabled by default.
+Before a verified same-title LaunchTitle request with 664 bytes, a host atomic
+exit request is set. Workers whose original creation start is exactly 8212A780
+may exit themselves via the pinned XThread::Exit at two reviewed boundaries:
+8212A5CC after the queue mutant release, and 8212A600 after idle wait return.
+Main-thread calls to the same scheduler and other worker entrypoints are excluded.
+Normal game execution preserves all original instructions/register state.
+The request lasts through shutdown rather than the SDK's 200-ms flag window;
+it resets during runtime setup. This is not forced foreign-thread termination.
+
+Independent Ghidra evidence: ghidra-0x8212A5C8.log, ghidra-0x8212A638.log,
+ghidra-0x82129758.log and ghidra-0x82344FC0.log. 82129768 branches to
+82344FC0, whose 82344FD0 calls import 82578B7C (NtReleaseMutant). All addresses
+remain bound to the reviewed default.xex hash. Generated game code is unedited.
+
+Strict codegen/build and the 14 existing tests passed:
+logs/worker-idle-exit-{build,tests}-console.log. Runtime acceptance remains
+pending in isolated saint_lo_worker_exit_01. This experiment does not yet seal
+new thread creation, prove GPU/audio teardown, fix leaked lifetime references,
+or implement in-process window/runtime restart. Those remain required.
+
 2026-10-15 implementation step: authored thread_exit_probe duplicates native
 Windows thread handles from retained SDK XObject::Thread objects immediately
 before the original LaunchTitle import. On main guest-thread exit it waits up

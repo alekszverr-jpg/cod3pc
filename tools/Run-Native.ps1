@@ -2,7 +2,7 @@ param([int]$Seconds = 30, [switch]$Headless, [switch]$Interactive,
     [ValidateSet('Debug','RelWithDebInfo','Release')][string]$Configuration = 'RelWithDebInfo',
     [switch]$FirstMission, [switch]$SynchronousMemexport, [switch]$GpuCoherencyTest,
     [switch]$FullGpuReadback, [switch]$GrassShaderTest, [switch]$StockGpu,
-    [switch]$ShaderDiagnostics,
+    [switch]$ShaderDiagnostics, [switch]$CooperativeWorkerExit,
     [ValidateRange(0,100)][int]$DofStrength = 100,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugMission,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugProfile,
@@ -48,6 +48,7 @@ $arguments = @('--gpu_plugin',$taskGpuPlugin,'--game_data_root',('"{0}"' -f "$Pr
     '--user_data_root',('"{0}"' -f $taskUserRoot),
     '--log_file',('"{0}"' -f $logPath),'--log_level','info')
 if ($Headless) { $arguments += '--headless' }
+if ($CooperativeWorkerExit) { $arguments += '--cod3_worker_cooperative_exit' }
 if ($Interactive) { $arguments += @('--mnk_mode','true') }
 if ($FirstMission) { $arguments += @('--cl','"+spmap saint_lo"') }
 if ($DebugMission) { $arguments += @('--cl', ('"+devmap {0}"' -f $taskSelectedLevel[0].map)) }

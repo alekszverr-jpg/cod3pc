@@ -4,6 +4,7 @@
 #include <vector>
 #include <rex/kernel/xam/module.h>
 #include "thread_exit_probe.h"
+void ArmCod3WorkerExit(const std::string& path, uint32_t flags);
 
 namespace {
 std::string GuestLoaderPath(uint32_t address) {
@@ -51,6 +52,7 @@ void Cod3TraceLaunchTitle(PPCRegister& r3, PPCRegister& r4) {
       GuestLoaderPath(r3.u32), r4.u32);
   Cod3TraceLoaderState();
   CaptureCod3TitleThreads();
+  ArmCod3WorkerExit(GuestLoaderPath(r3.u32), r4.u32);
 }
 void Cod3TraceStartupTerminate() {
   REXCPU_INFO("COD3_TRANSITION_TERMINATE origin=startup_check");

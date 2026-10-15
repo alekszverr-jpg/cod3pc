@@ -27,6 +27,7 @@ set(COD3PC_SOURCES
     src/runtime/title_relaunch.cpp
     src/runtime/thread_exit_probe.cpp
     src/runtime/title_thread_trace.cpp
+    src/runtime/worker_exit.cpp
     src/runtime/dof_trace.cpp
 )
 

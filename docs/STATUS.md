@@ -1,5 +1,13 @@
 # Состояние проекта
 
+2026-10-15: runtime probe выявил три живых потока из 13 после завершения
+Saint-Lo (ожидание 1000 ms). Добавлен выключенный по умолчанию эксперимент
+CooperativeWorkerExit: проверенные worker idle boundaries и штатный XThread::Exit
+только при оригинальном same-title restart. Strict codegen/build и 14 tests
+прошли; открыт saint_lo_worker_exit_01 для сравнения. Это ещё не бесшовный режим.
+Стеки текущей Island сняты приватным dump и разобраны offline. См.
+SEAMLESS_TRANSITIONS.md.
+
 2026-10-15: добавлен первый этап бесшовного lifecycle — наблюдение реального
 завершения native guest threads через дублированные Windows handles перед
 LaunchTitle и после выхода main guest thread. Strict codegen/build и 14 tests

@@ -22,6 +22,8 @@ void CaptureCod3TitleThreads() {
     if (object->type() != rex::system::XObject::Type::Thread) continue;
     auto* thread = static_cast<rex::system::XThread*>(object.get());
     if (!thread->is_guest_thread() || !thread->thread()) continue;
+    REXLOG_INFO("COD3_TITLE_THREAD_CAPTURE guest={} native={} start={:08X}",
+        thread->thread_id(), thread->thread()->system_id(), thread->creation_params()->start_address);
     try {
       snapshot->Add(thread->thread()->native_handle(), thread->thread_id(), thread->thread()->system_id());
     } catch (const std::exception& error) {
