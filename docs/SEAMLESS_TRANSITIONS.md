@@ -2,6 +2,21 @@
 
 ## Runtime blocker and worker-exit experiment, 2026-10-15
 
+Experiment result: native-20261015-173618-681.log at 17:40:17.252 host time
+records 13 captured threads and WORKER_EXIT_ARMED. At 17:40:18.454 the probe
+still reports three pending threads: guest 8/native 37448, guest 9/native 32344,
+guest 10/native 32304. All have verified creation start 8212A780. No
+WORKER_EXIT_IDLE event was logged. Therefore the new idle boundaries were not
+reached on this shutdown path and did not solve the worker lifetime blocker.
+The successor restored 664 bytes; user observed another process/window restart,
+as expected from the still-active process handoff. Do not call this seamless
+or promote CooperativeWorkerExit to default.
+
+Next investigation must capture the *pending old-title threads* while they
+remain alive (before the parent process exits), not infer their location from
+an unrelated successor sample. Inspect SDK waits, termination and lock/lifetime
+ordering at that point. Repeating this unchanged experiment is not useful.
+
 native-20261015-172035-847.log records 13 captured guest threads, no capture
 errors, and three still alive after 1000 ms: guest 7/native 39132,
 guest 8/native 20844, guest 9/native 23476. The process handoff still worked;
