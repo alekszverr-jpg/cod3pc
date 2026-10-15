@@ -1,5 +1,12 @@
 # Состояние проекта
 
+2026-10-15: сохранён снимок saint_lo_final из профиля saint_lo_end, файлы
+проверены по SHA-256 и восстановлены в saint_lo_repeat_01. Лог предыдущего
+запуска впервые подтвердил SetLaunchData=664, LaunchTitle default.xex и SDK
+device path. Исправлена проверка пути в relaunch policy; strict codegen/build
+и 13 tests прошли. Открыт один обычный запуск копии checkpoint; точное место
+Continue и переход Saint-Lo→Island ещё требуют подтверждения пользователя.
+
 2026-10-15: реализован native title relaunch с передачей 664 байт через
 анонимный Windows pipe и ожиданием завершения предыдущего процесса до создания
 окна/Runtime. Обычный выход не перезапускается. Strict codegen/build и 13 tests

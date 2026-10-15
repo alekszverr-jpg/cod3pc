@@ -37,6 +37,9 @@ int wmain() {
       return 0;
     }
     Require(cod3::IsCampaignRelaunch("GAME:/DEFAULT.XEX", 0, true, 664));
+    Require(cod3::IsCampaignRelaunch("\\Device\\Harddisk0\\Partition1\\default.xex", 0, true, 664));
+    Require(!cod3::IsCampaignRelaunch("\\Device\\Harddisk0\\Partition2\\default.xex", 0, true, 664));
+    Require(!cod3::IsCampaignRelaunch("\\Device\\Harddisk0\\Partition1\\codmp_xenonf.xex", 0, true, 664));
     for (const auto path : {"", "game:\\codmp_xenonf.xex", "default.xex", "game:\\sp\\island\\island.dll"})
       Require(!cod3::IsCampaignRelaunch(path, 0, true, 664));
     Require(!cod3::IsCampaignRelaunch("game:\\default.xex", 1, true, 664));

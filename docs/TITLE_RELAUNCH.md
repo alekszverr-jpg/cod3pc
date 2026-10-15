@@ -1,12 +1,22 @@
 # Native title relaunch
 
+Runtime update 2026-10-15: native-20261015-131421-759.log at 13:48:14 host time
+records SetLaunchData success (664 bytes), LaunchTitle default.xex flags 0,
+then the resolved path \Device\Harddisk0\Partition1\default.xex. The initial
+game:-only policy rejected this legitimate request. The exact verified alias
+is now accepted; other partitions and multiplayer images remain rejected by
+regression tests. Strict codegen/build and all 13 tests passed again:
+logs/title-device-path-{build,tests}-console.log. The user had been asked to
+exit at a checkpoint, so this request alone does not prove mission completion.
+
 The original campaign has two verified paths that send 664 opaque bytes to
 XamLoaderSetLaunchData before XLaunchNewImage. The pinned SDK stores the bytes
 and launch path but ends the title without launching the next image. Instruction
 evidence and executable hash are recorded in CAMPAIGN_READINESS.md.
 
 The authored host implementation uses the SDK's OnGuestThreadExit callback.
-Only game:\default.xex with flags 0, launch_data_present and exactly 664 bytes
+Only game:\default.xex or the verified SDK device alias
+\Device\Harddisk0\Partition1\default.xex with flags 0, launch_data_present and exactly 664 bytes
 qualifies. Ordinary exits, empty launch requests, multiplayer and other images
 do not relaunch. `--cod3_relaunch=false` disables the feature for comparison.
 

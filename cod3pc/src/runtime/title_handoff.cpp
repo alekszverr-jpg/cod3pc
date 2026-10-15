@@ -73,7 +73,11 @@ bool IsCampaignRelaunch(const std::string& path, uint32_t flags,
   std::transform(normalized.begin(), normalized.end(), normalized.begin(),
       [](unsigned char ch) { return ch >= 'A' && ch <= 'Z' ? ch + ('a' - 'A') : ch; });
   std::replace(normalized.begin(), normalized.end(), '/', '\\');
-  return normalized == "game:\\default.xex" && flags == 0 && present &&
+  // Runtime evidence: the pinned loader resolves a relative default.xex using
+  // the executable's device path, not necessarily its game: symlink alias.
+  const bool same_image = normalized == "game:\\default.xex" ||
+      normalized == "\\device\\harddisk0\\partition1\\default.xex";
+  return same_image && flags == 0 && present &&
          bytes == kCampaignLaunchBytes;
 }
 
