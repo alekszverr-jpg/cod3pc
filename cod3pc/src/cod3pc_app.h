@@ -10,6 +10,9 @@
 
 void InstallCod3CrashTrace();
 void Cod3TraceLoaderState();
+void PrepareCod3TitleHandoff();
+void RestoreCod3TitleHandoff();
+void RelaunchCod3TitleIfRequested();
 
 class Cod3pcApp : public rex::ReXApp {
  public:
@@ -17,6 +20,7 @@ class Cod3pcApp : public rex::ReXApp {
 
   static std::unique_ptr<rex::ui::WindowedApp> Create(
       rex::ui::WindowedAppContext& ctx) {
+    PrepareCod3TitleHandoff();
     return std::unique_ptr<Cod3pcApp>(new Cod3pcApp(ctx, "cod3pc",
         PPCImageConfig));
   }
@@ -34,6 +38,7 @@ class Cod3pcApp : public rex::ReXApp {
 
   void OnPostSetup() override {
     InstallCod3CrashTrace();
+    RestoreCod3TitleHandoff();
     REXLOG_INFO("COD3_GPU_SETTINGS memexport={} memexport_fast={} resolve={} page_refresh={}",
         rex::cvar::GetFlagByName("readback_memexport"),
         rex::cvar::GetFlagByName("readback_memexport_fast"),
@@ -42,9 +47,8 @@ class Cod3pcApp : public rex::ReXApp {
   }
 
   void OnGuestThreadExit(rex::system::XThread*) override {
-    // Observe the SDK's final launch request before its normal UI shutdown.
-    // Never convert an ordinary exit into a relaunch or suppress termination.
     Cod3TraceLoaderState();
+    RelaunchCod3TitleIfRequested();
   }
 
   // Override virtual hooks for customization:

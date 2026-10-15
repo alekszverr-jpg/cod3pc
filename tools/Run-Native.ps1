@@ -5,10 +5,14 @@ param([int]$Seconds = 30, [switch]$Headless, [switch]$Interactive,
     [switch]$ShaderDiagnostics,
     [ValidateRange(0,100)][int]$DofStrength = 100,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugMission,
+    [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugProfile,
     [switch]$ListLevels, [switch]$DryRun)
 . "$PSScriptRoot/Enter-Toolchain.ps1"
 $app = Join-Path $ProjectRoot ('cod3pc/out/build/win-amd64-' + $Configuration.ToLowerInvariant() + '/cod3pc.exe')
 if ($DebugMission -and $FirstMission) { throw 'Use DebugMission or FirstMission, not both.' }
+if ($DebugMission -and $DebugProfile -and $DebugMission -cne $DebugProfile) {
+    throw 'DebugMission already selects its own profile; use DebugProfile alone to resume a checkpoint.'
+}
 if ($DebugMission -or $ListLevels) {
     $taskLevelsJson = & $Python "$PSScriptRoot/list_debug_levels.py" --game-root "$ProjectRoot/assets/game" `
         --manifest "$ProjectRoot/cod3pc/cod3pc_manifest.toml" --build-root (Split-Path $app)
@@ -38,7 +42,8 @@ if ($GpuCoherencyTest -and $Configuration -ne 'RelWithDebInfo') {
     throw 'The GPU coherency test plugin is currently staged only for RelWithDebInfo.'
 }
 $taskUserRoot = Join-Path $ProjectRoot 'userdata'
-if ($DebugMission) { $taskUserRoot = Join-Path $taskUserRoot "debug-levels/$DebugMission" }
+$taskProfile = if ($DebugMission) { $DebugMission } else { $DebugProfile }
+if ($taskProfile) { $taskUserRoot = Join-Path $taskUserRoot "debug-levels/$taskProfile" }
 $arguments = @('--gpu_plugin',$taskGpuPlugin,'--game_data_root',('"{0}"' -f "$ProjectRoot/assets/game"),
     '--user_data_root',('"{0}"' -f $taskUserRoot),
     '--log_file',('"{0}"' -f $logPath),'--log_level','info')
@@ -72,11 +77,11 @@ if ($DryRun) {
 if (@(Get-Process -Name cod3pc -ErrorAction SilentlyContinue).Count -gt 0) {
     throw 'cod3pc is already running. Close the existing game before launching another instance.'
 }
-if ($DebugMission) {
+if ($taskProfile) {
     # Explicit debug launches bypass progression with the game's own command.
     # Isolate all autosaves, profiles and caches from the normal campaign.
     New-Item -ItemType Directory -Force $taskUserRoot | Out-Null
-    Write-Output "Level debug: $DebugMission; isolated profile: $taskUserRoot"
+    Write-Output "Isolated profile: $taskUserRoot; direct map: $DebugMission"
 }
 $proc = Start-Process -FilePath $app -ArgumentList $arguments -WorkingDirectory (Split-Path $app) -WindowStyle $windowStyle -PassThru
 Write-Output "Started native cod3pc PID $($proc.Id)"

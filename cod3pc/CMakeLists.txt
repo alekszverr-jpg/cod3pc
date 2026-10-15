@@ -23,6 +23,8 @@ set(COD3PC_SOURCES
     src/runtime/script_coroutines.cpp
     src/runtime/save_trace.cpp
     src/runtime/transition_trace.cpp
+    src/runtime/title_handoff.cpp
+    src/runtime/title_relaunch.cpp
     src/runtime/dof_trace.cpp
 )
 
@@ -48,7 +50,7 @@ if(TARGET cod3pc_island)
     target_sources(cod3pc_island PRIVATE src/runtime/island_entry_trace.cpp)
 endif()
 if(WIN32)
-    target_link_libraries(cod3pc PRIVATE dbghelp)
+    target_link_libraries(cod3pc PRIVATE dbghelp shell32)
 endif()
 
 include(CTest)
@@ -61,4 +63,9 @@ if(BUILD_TESTING)
     add_executable(cod3_fiber_test ../tests/fiber_task_test.cpp src/runtime/fiber_task.cpp)
     rexglue_apply_target_settings(cod3_fiber_test)
     add_test(NAME script_fiber_continuations COMMAND cod3_fiber_test)
+    add_executable(cod3_handoff_test ../tests/title_handoff_test.cpp src/runtime/title_handoff.cpp)
+    target_link_libraries(cod3_handoff_test PRIVATE shell32)
+    rexglue_apply_target_settings(cod3_handoff_test)
+    add_test(NAME native_title_handoff COMMAND cod3_handoff_test)
+    set_tests_properties(native_title_handoff PROPERTIES TIMEOUT 15)
 endif()
