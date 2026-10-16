@@ -1,0 +1,28 @@
+{
+  "$schema": "https://recomp.fyi/schema/v1.json",
+  "game": "Call of Duty 3",
+  "system": "Xbox 360",
+  "type": "recomp",
+  "project": "cod3pc",
+  "status": "in-progress",
+  "targets": ["Windows"],
+  "toolchain": "ReXGlue",
+  "approach": "Static PowerPC-to-C++ recompilation to native Windows x64 using ReXGlue 0.10.0 and the Xenos GPU backend.",
+  "maintainers": [
+    {
+      "name": "alekszverr-jpg",
+      "link": "https://github.com/alekszverr-jpg"
+    }
+  ],
+  "links": [
+    {
+      "label": "Development status",
+      "url": "https://github.com/alekszverr-jpg/cod3pc/blob/main/docs/STATUS.md"
+    },
+    {
+      "label": "Roadmap",
+      "url": "https://github.com/alekszverr-jpg/cod3pc/blob/main/docs/ROADMAP.md"
+    }
+  ],
+  "notes": "Early development, single-player only. Native menus and Saint-Lo gameplay have been tested. Island loading, player control and a Saint-Lo-to-Island transition have been verified in local development builds. The full campaign is not supported yet; stability, spatial audio and seamless in-process transitions remain under development. Original user-owned Xbox 360 game assets are required."
+}
