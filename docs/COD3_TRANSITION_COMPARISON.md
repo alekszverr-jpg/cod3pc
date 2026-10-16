@@ -1,5 +1,12 @@
 # Other native CoD3 ports: transition source review
 
+2026-10-16 addition: jxnplays/cod3-recomp (COD3 Reborn), revision
+ab73d51beba4c0a5e3cf2526f592135f4f91c136, is a continuation of CoD3Recomp.
+Its kernel_xam.cpp also creates a successor process and calls ExitProcess;
+broader XEX selection is not an in-process campaign reset. See
+[JXNPLAYS_REVIEW.md](JXNPLAYS_REVIEW.md). This adds no independently verified
+same-process implementation to the comparison.
+
 Reviewed 2026-10-15 against current GitHub default-branch commit IDs, fetched
 through the GitHub API. Authored host sources only; no game binaries or generated
 game code were imported. No implementation was copied into cod3pc.
