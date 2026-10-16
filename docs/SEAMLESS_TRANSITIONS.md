@@ -1,5 +1,64 @@
 # Campaign transition without application restart
 
+## Old-title capture and teardown audit, 2026-10-16
+
+Added opt-in `Run-Native.ps1 -TransitionDump` / `cod3_transition_dump`.
+After the native exit probe reports pending old-title threads, before
+`RelaunchCod3TitleIfRequested`, it invokes a separate `cod3_dump_threads.exe`
+diagnostic helper on the current PID. The helper writes a private minidump
+with thread contexts/stacks, thread information and module metadata (not full
+guest memory). It uses CREATE_NEW, never overwrites evidence, and runs DbgHelp
+outside the target to avoid self-dump loader/heap deadlocks. The parent waits
+up to 15 seconds and logs PID, output path, helper result and wait result.
+Failure never enables Runtime destruction. The helper executes no game code
+and is not an application backend. Existing process handoff remains active.
+
+Dumps are under `reports/transition-threads` relative to the game's working
+directory (normally the ignored `cod3pc/out/build/win-amd64-relwithdebinfo`).
+The native IDs in COD3_TITLE_THREAD_PENDING must be matched to those in this
+same dump, not an Island successor. A dump samples those threads at capture
+time; it does not prove they remain blocked at the same location forever.
+
+Strict codegen/native build and 14 tests passed; logs are
+`transition-dump-{build,tests}-console.log`. A real out-of-process helper test
+verified MDMP signature, ThreadListStream and ThreadInfoListStream, refusal
+to overwrite an existing dump and refusal of an invalid PID. Opened one
+normal-menu instance with a fresh isolated `saint_lo_thread_dump_02` copy of
+`saint_lo_final`, DoF 35%, dump enabled, cooperative-idle experiment disabled.
+Runtime transition evidence is pending; no seamless transition is claimed.
+
+Further pinned-source findings for the five required changes:
+
+- `XThread` registers itself in its constructor, before `Create` starts the
+  native thread. A creation seal must cover this create/start race, including
+  suspended threads; a one-time object-table snapshot cannot establish it.
+  `WaitForThreadsToExit` currently polls `is_running`, not native handles.
+- D3D12 `ShutdownContext` already calls `AwaitAllQueueOperationsCompletion`.
+  `CommandProcessor::Shutdown` stops its loop and waits for its host worker.
+  These existing paths must be preserved and their completion observed before
+  memory reset; title guest exit alone says nothing about GPU completion.
+- Audio shutdown has additional unsafe fallback paths for an in-process reset:
+  `AudioSystem::Shutdown` can force-terminate a callback worker on timeout;
+  `XmaDecoder::Shutdown` can abandon its worker after 2 seconds and then free
+  guest context storage. A safe reset needs positive host exit for both, with
+  callback submission sealed first. Merely calling Runtime::Shutdown is
+  insufficient even if the three game workers have exited.
+- `KernelState` destruction already sweeps user modules via UnloadUserModule
+  with guest DllMain disabled, then clears dispatch-related objects and deferred
+  host libraries. This must run only after all callers/coroutines are retired.
+  Our script coroutine map is thread_local and holds PPC contexts/base pointers;
+  its owning thread's cleanup must finish before guest memory destruction.
+- `ReXApp::OnDestroy` contains the presentation detachment sequence: unregister
+  achievement callback, destroy overlays, detach ImGui/immediate drawer,
+  clear runtime window/drawer pointers and window presenter. Extract that
+  sequence for restart while retaining the window and joining module_thread
+  on another thread. Do not call the existing window-close hard-exit path.
+
+Next action: inspect the pending original workers in the new transition dump,
+then implement a persistent, creation-sealed cooperative exit barrier. The
+other teardown gates must return explicit success before same-process reset
+can be enabled; timeout must retain the old memory rather than free it.
+
 External-source comparison 2026-10-15: current CoD3Recomp and Project 1944 both
 use CreateProcessW for title reboot, not a same-process Runtime reset. Project
 1944 retains the old frame/window until a successor game-loop readiness event

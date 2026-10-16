@@ -3,13 +3,61 @@
 #include <rex/system/kernel_state.h>
 #include <rex/system/xthread.h>
 #include <rex/thread.h>
+#include <rex/cvar.h>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#include <filesystem>
 #include <memory>
 #include <mutex>
+
+REXCVAR_DEFINE_BOOL(cod3_transition_dump, false, "Debug",
+    "Capture pending old-title workers before process handoff").debug_only();
 
 namespace {
 std::mutex probe_mutex;
 std::unique_ptr<Cod3ThreadExitProbe> probe;
 bool incomplete = false;
+
+void DumpPendingTitleThreads() {
+  // DbgHelp must run outside the target: dumping oneself may deadlock on
+  // loader/heap locks held by the very workers being investigated.
+  wchar_t image[32768];
+  const auto count = GetModuleFileNameW(nullptr, image, 32768);
+  if (!count || count == 32768) {
+    REXLOG_ERROR("COD3_TITLE_DUMP_FAILED stage=executable_path");
+    return;
+  }
+  const auto helper = std::filesystem::path(image).parent_path() / L"cod3_dump_threads.exe";
+  const auto directory = std::filesystem::current_path() / L"reports" / L"transition-threads";
+  std::error_code error;
+  std::filesystem::create_directories(directory, error);
+  if (error) {
+    REXLOG_ERROR("COD3_TITLE_DUMP_FAILED stage=directory error={}", error.message());
+    return;
+  }
+  const auto output = directory / (L"old-title-" + std::to_wstring(GetCurrentProcessId()) +
+      L"-" + std::to_wstring(GetTickCount64()) + L".dmp");
+  std::wstring command = L"\"" + helper.wstring() + L"\" " +
+      std::to_wstring(GetCurrentProcessId()) + L" \"" + output.wstring() + L"\"";
+  STARTUPINFOW startup{};
+  startup.cb = sizeof(startup);
+  PROCESS_INFORMATION child{};
+  if (!CreateProcessW(helper.c_str(), command.data(), nullptr, nullptr, FALSE,
+      CREATE_NO_WINDOW, nullptr, nullptr, &startup, &child)) {
+    REXLOG_ERROR("COD3_TITLE_DUMP_FAILED stage=create error={}", GetLastError());
+    return;
+  }
+  CloseHandle(child.hThread);
+  const auto waited = WaitForSingleObject(child.hProcess, 15000);
+  DWORD result = STILL_ACTIVE;
+  GetExitCodeProcess(child.hProcess, &result);
+  CloseHandle(child.hProcess);
+  REXLOG_INFO("COD3_TITLE_DUMP_RESULT pid={} wait={} result={} path='{}'",
+      GetCurrentProcessId(), waited, result, output.string());
+  // A failed/timed-out diagnostic never authorizes teardown or changes the
+  // existing handoff path. The helper has no game/window/backend role.
+}
 }
 
 void CaptureCod3TitleThreads() {
@@ -55,6 +103,7 @@ void ReportCod3TitleThreads() {
   for (const auto& item : pending)
     REXLOG_WARN("COD3_TITLE_THREAD_PENDING guest={} native={} wait_failed={}",
         item.guest_id, item.native_id, item.wait_failed);
+  if (!pending.empty() && REXCVAR_GET(cod3_transition_dump)) DumpPendingTitleThreads();
   // This is evidence, not a permission to free memory: threads created after
   // the snapshot and GPU/audio host workers are outside this observation.
 }
