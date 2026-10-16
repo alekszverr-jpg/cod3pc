@@ -4,11 +4,14 @@
 #include <rex/system/kernel_state.h>
 #include <rex/system/xthread.h>
 #include <rex/kernel/xam/module.h>
+#include <rex/hook.h>
 #include <atomic>
 
 REXCVAR_DEFINE_BOOL(cod3_worker_cooperative_exit, false, "Debug",
-    "Experimental same-title worker exit at verified idle boundaries").debug_only();
+    "Experimental same-title worker exit with bounded idle waits").debug_only();
 namespace { std::atomic<bool> title_exit_requested{false}; }
+
+REX_EXTERN(__imp__sub_82343880);
 
 void ResetCod3WorkerExit() {
   title_exit_requested.store(false, std::memory_order_release);
@@ -37,4 +40,39 @@ void Cod3StopWorkerAtIdle() {
   // from its idle wait. Preserve the original SDK's cooperative Exit semantics.
   // Never terminate a foreign host thread or touch guest state on a live title.
   thread->Exit(0);
+}
+
+REX_HOOK_RAW(sub_82343880) {
+  auto* thread = rex::system::XThread::IsInThread()
+      ? rex::system::XThread::GetCurrentThread() : nullptr;
+  // Ghidra 2026-10-16, installed E057 image: 8212A5FC calls this
+  // non-alertable wait after releasing the queue mutant, with r4=-1.
+  // Restrict the experiment to that exact worker idle call. Every other
+  // timeout/caller/thread retains the original tail-call wrapper unchanged.
+  const bool idle = REXCVAR_GET(cod3_worker_cooperative_exit) && thread &&
+      thread->is_guest_thread() && !thread->main_thread() &&
+      thread->creation_params()->start_address == 0x8212A780 &&
+      ctx.lr == 0x8212A600 && ctx.r4.u32 == UINT32_MAX;
+  if (!idle) {
+    __imp__sub_82343880(ctx, base);
+    return;
+  }
+  thread_local bool logged = false;
+  if (!logged) {
+    REXLOG_INFO("COD3_WORKER_IDLE_WAIT guest={} native={} handle={:08X} quantum_ms=50",
+        thread->thread_id(), thread->thread()->system_id(), ctx.r3.u32);
+    logged = true;
+  }
+  const PPCContext entry = ctx;
+  for (;;) {
+    // Outside the original kernel wait: its local object refs/locks have
+    // unwound before cooperative self-exit. Never kill another thread.
+    Cod3StopWorkerAtIdle();
+    ctx = entry;
+    ctx.r4.u64 = 50;
+    __imp__sub_82343880(ctx, base);
+    // Retry only a real timeout. A signal, error or abandonment is returned
+    // through the original wrapper and its original PPC epilogue/registers.
+    if (ctx.r3.u32 != 0x102) return;
+  }
 }

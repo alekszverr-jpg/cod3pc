@@ -1,5 +1,54 @@
 # Campaign transition without application restart
 
+## Pending worker stacks and bounded idle-wait experiment, 2026-10-16
+
+The new capture succeeded before process handoff: old PID 5956, log
+`native-20261016-202315-881.log`, 13 captured/3 pending after 1001 ms.
+Native IDs 19000/20280/61388 (guest 7/8/9) map exactly to dump threads
+33/34/35 (0x4a38/0x4f38/0xefcc). All three stacks are:
+`NtWaitForSingleObject -> WaitForSingleObjectEx -> rex::thread::Wait ->
+XObject::Wait -> NtWaitForSingleObjectEx_entry -> sub_823494C0 ->
+sub_8212A520 -> sub_8212A780`. This is old-title evidence, not a successor
+sample. Private dump: build directory `reports/transition-threads/
+old-title-5956-37336109.dmp`; LLDB output: `logs/old-title-5956-stacks.log`.
+The capture completed successfully and normal handoff transferred 664 bytes.
+
+LLDB disassembly of the actual installed runtime confirms that XObject::Wait
+checks title termination only before and after its native wait. The matching
+local SDK PDB is unavailable (newer source-build PDB rejected), so no private
+SDK variables are inferred from mismatched symbols. Exported symbols and game
+PDB frames establish the call chain. The blocking wait itself gives neither
+the persistent project request nor the original post-wait idle hook a chance
+to run while it remains unsignaled.
+
+Ghidra on installed E057 XEX independently confirms:
+
+- 8212A5C8 calls queue-mutant release 82129768; 8212A5CC calls 8212A488.
+- 8212A5F4 loads r4 from r20 (-1); 8212A5F8 loads the idle handle into r3;
+  8212A5FC calls 82343880, returning at 8212A600.
+- 82343880 sets r5=0 (non-alertable), then tail-branches to 823494C0.
+- 82349E58 maps timeout -1 to null, otherwise writes -10000*r4 ticks.
+- 823494F4 calls NtWaitForSingleObjectEx (82578B0C), then preserves the
+  real status/error path and original register/stack epilogue.
+
+Evidence: `logs/ghidra-worker-idle-wait.log`. Added a disabled-by-default
+extension of CooperativeWorkerExit: hook only this exact infinite worker
+idle call (start 8212A780, LR 8212A600, r4=-1). Reinvoke the original wrapper
+with 50-ms waits, restoring the entry PPC context between timeout retries.
+Only real timeout 0x102 is retried; signals, errors and abandonment retain the
+original return path. Between calls, after kernel locals have unwound, the
+worker may honor the persistent validated relaunch request through its own
+XThread::Exit. Other threads/callers/timeouts use the original wrapper once.
+No generated game function was edited, no foreign thread is killed, and no
+empty import returns invented success.
+
+Strict build/codegen and 14 tests passed (`worker-bounded-wait-*-console.log`).
+One fresh checkpoint profile `saint_lo_bounded_wait_01`, PID 27180, was opened
+with CooperativeWorkerExit and TransitionDump. Original entry and four worker
+idle-wait registrations are logged; mission-transition exit result is pending.
+This experiment still does not seal thread creation, establish an audio/GPU
+barrier or enable same-process Runtime destruction.
+
 ## Old-title capture and teardown audit, 2026-10-16
 
 Added opt-in `Run-Native.ps1 -TransitionDump` / `cod3_transition_dump`.

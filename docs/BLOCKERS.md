@@ -2,7 +2,15 @@
 
 ## Текущий приоритет: бесшовный переход в одном процессе
 
-Последний результат: CooperativeWorkerExit не помог. В
+2026-10-16: получены стеки именно старых pending workers PID 5956.
+Все три находятся в бесконечном non-alertable idle wait, после освобождения
+queue mutant. Подтверждено Ghidra; добавлен opt-in эксперимент повторения
+оригинального ожидания по 50 ms с кооперативным выходом между вызовами.
+Build/14 tests прошли; проверка перехода открыта в saint_lo_bounded_wait_01.
+Даже если workers выйдут, остаются creation seal и audio/XMA/GPU teardown.
+См. SEAMLESS_TRANSITIONS.md; бесшовный переход пока не реализован.
+
+Предыдущий результат 2026-10-15: CooperativeWorkerExit не помог. В
 native-20261015-173618-681.log снова 3 pending (8,9,10; все start 8212A780),
 хотя запрос выхода был armed. Idle callback не достигнут. Нужны стеки этих
 потоков до завершения старого процесса и исправление SDK shutdown ordering.

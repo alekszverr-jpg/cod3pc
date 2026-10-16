@@ -1,5 +1,13 @@
 # Состояние проекта
 
+2026-10-16: дамп старого PID 5956 сопоставлен со всеми тремя pending workers:
+они ждут NtWaitForSingleObjectEx в idle-пути 8212A520. Реальные SDK wait checks
+стоят до/после native wait. Ghidra подтвердил точный caller/timeout; расширен
+opt-in CooperativeWorkerExit: настоящий wait по 50 ms и self-exit между
+вызовами. Strict build/codegen и 14 tests прошли. Открыт отдельный checkpoint
+saint_lo_bounded_wait_01, результат перехода ожидается. Безопасный in-process
+reset пока не включён. См. SEAMLESS_TRANSITIONS.md.
+
 2026-10-16: добавлен opt-in TransitionDump: автоматический out-of-process
 захват стеков именно старого PID после обнаружения pending workers и до
 межпроцессного handoff. Build/14 tests и проверка dump helper прошли.
