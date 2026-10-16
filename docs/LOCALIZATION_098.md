@@ -53,3 +53,12 @@ a real menu/gameplay check; file comparison alone does not establish it.
 provided a Saint-Lo cutscene screenshot with readable Russian subtitles.
 This confirms the shown subtitle context; all missions, menus and button
 prompts have not yet been visually reviewed.
+
+Later on 2026-10-16, installed the user's revision 06 from the same source.
+All 552 source files were checked against its updated manifest and compared
+with the active tree. Only `sp/global.cod` differed; it was staged, copied and
+verified again by SHA-256. Its previous version is retained in private
+`reports/localization-update-20261016-201309/previous` with installation.json
+alongside it. The package notes a revised PR-02992 subtitle ("Парень тычет мне
+пушкой в лицо…"). default.xex retains the reviewed E057 hash; no native rebuild
+was needed. Runtime confirmation of this latest subtitle revision is pending.
