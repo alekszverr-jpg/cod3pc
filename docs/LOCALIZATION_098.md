@@ -48,3 +48,8 @@ Both passed on 2026-10-16: 10 Python tests and four native tests. Generated
 code was edited by hand. One normal-menu runtime was launched with DoF 35%.
 Visual acceptance of this translation, line wrapping and button prompts needs
 a real menu/gameplay check; file comparison alone does not establish it.
+
+2026-10-16 runtime feedback: the user confirmed the translation works and
+provided a Saint-Lo cutscene screenshot with readable Russian subtitles.
+This confirms the shown subtitle context; all missions, menus and button
+prompts have not yet been visually reviewed.
