@@ -11,6 +11,8 @@
 #include <memory>
 #include <mutex>
 
+REXCVAR_DECLARE(bool, cod3_title_thread_drain);
+
 REXCVAR_DEFINE_BOOL(cod3_transition_dump, false, "Debug",
     "Capture pending old-title workers before process handoff").debug_only();
 
@@ -104,6 +106,12 @@ void ReportCod3TitleThreads() {
     REXLOG_WARN("COD3_TITLE_THREAD_PENDING guest={} native={} wait_failed={}",
         item.guest_id, item.native_id, item.wait_failed);
   if (!pending.empty() && REXCVAR_GET(cod3_transition_dump)) DumpPendingTitleThreads();
+  if (REXCVAR_GET(cod3_title_thread_drain)) {
+    const auto drain = rex::system::kernel_state()->WaitForTitleThreadExit(5000);
+    REXLOG_INFO("COD3_TITLE_THREAD_DRAIN sealed={} creation_complete={} tracked={} pending={}",
+        drain.sealed, drain.creation_complete, drain.tracked, drain.pending);
+    // Still observational: audio/GPU callbacks and teardown are separate gates.
+  }
   // This is evidence, not a permission to free memory: threads created after
   // the snapshot and GPU/audio host workers are outside this observation.
 }

@@ -1,5 +1,58 @@
 # Campaign transition without application restart
 
+## Successful idle exit and SDK creation barrier, 2026-10-17
+
+User confirmed Island loaded after the bounded-wait experiment. Parent log
+`native-20261016-203735-755.log` records WORKER_EXIT_ARMED at 20:41:19.735,
+then `captured=13 pending=0 incomplete=false elapsed_ms=0` at 20:41:19.785,
+before handing off 664 bytes. This verifies actual native exit for the captured
+threads in that run, not a complete Runtime teardown or same-process transition.
+
+Next implemented opt-in `-TitleThreadDrain` (requires CooperativeWorkerExit):
+
+- A pinned SDK patch adds a permanent per-KernelState guest-creation gate.
+  XThread::Create acquires a creation lease before guest/native allocation,
+  keeps it through initial Resume and rejects new creation after sealing with
+  X_STATUS_THREAD_IS_TERMINATING. Restore's separate native-creation path also
+  takes a lease. Host audio/GPU threads are deliberately outside this gate.
+- Before the original LaunchTitle import, after validating its campaign data,
+  seal creation and retain registered guest XThread objects, including the main
+  thread and in-flight creations. Registration during a pending creation is
+  also retained. TerminateTitle can no longer lose these records by clearing
+  its ordinary registry, and its termination flag stays set for the sealed title.
+- After main native exit, WaitForTitleThreadExit first waits for admitted
+  creators to finish, then checks actual native handles of retained threads.
+  A suspended thread or failed handle wait counts as pending, not as exited.
+  Incomplete creation is returned explicitly. It never relies on is_running.
+- This step only logs `COD3_TITLE_THREAD_DRAIN sealed=... creation_complete=...
+  tracked=... pending=...`. It does not free memory, rebuild Runtime or suppress
+  failures. Audio/GPU/dispatch callbacks, ownership/fiber cleanup and window
+  lifecycle remain separate unfinished requirements.
+
+Patch: `tools/patches/rexglue-v0100-title-thread-drain.patch` against pinned
+SDK c94f5ebdcb3c9d1a460ca48e04f9758448f8d518. Build-TitleThreadDrain.ps1
+checks patch context, builds rexruntime and stages matching DLL/import library,
+PDB and headers. Existing prefix files are backed up privately in
+`reports/title-thread-drain/previous-sdk`; unchanged headers are not recopied.
+The build entry invokes this before codegen/application build. Existing member
+offsets are preserved by appending KernelState fields; runtime reset stays opt-in.
+
+The completed strict/native build is recorded in
+`logs/title-thread-drain-app-build-console.log`. All 15 tests passed in
+`logs/title-thread-drain-tests-console.log` (10 Python, five native). The new
+concurrent gate test holds eight admitted creations over Seal, checks timeout
+while they remain active, rejects 8,000 post-seal attempts, releases the leases,
+observes completion and verifies a fresh title gate independently admits work.
+Matching staged/application SDK SHA-256:
+`71789A5D6253F20FF6B748E544E943D0621B428E131C63F02A338685F5243346`.
+Rebuilt corrected GPU plugin SHA-256:
+`E79C800C7C7E5A7213F418B22546881EB6AFCA9E12BD096646876C43CF31A6C3`.
+Its changed binary hash follows the SDK/header rebuild; shader fixes remain.
+
+Opened one normal-menu test in isolated `saint_lo_thread_drain_01` with
+checkpoint saint_lo_final and DoF 35%. Runtime acceptance of the SDK barrier
+is pending. Main userdata is unchanged.
+
 ## Pending worker stacks and bounded idle-wait experiment, 2026-10-16
 
 The new capture succeeded before process handoff: old PID 5956, log

@@ -1,0 +1,222 @@
+diff --git a/include/rex/system/kernel_state.h b/include/rex/system/kernel_state.h
+index 9b9cf9e..38686e5 100644
+--- a/include/rex/system/kernel_state.h
++++ b/include/rex/system/kernel_state.h
+@@ -28,6 +28,7 @@
+ #include <rex/logging.h>
+ #include <rex/system/achievement_manager.h>
+ #include <rex/system/thread_state.h>
++#include <rex/system/title_thread_gate.h>
+ #include <rex/thread/fiber.h>
+ #include <rex/system/util/native_list.h>
+ #include <rex/system/util/object_table.h>
+@@ -276,6 +277,19 @@ class KernelState {
+   void TerminateTitle();
+   bool is_terminating_title() const { return terminating_title_.load(std::memory_order_acquire); }
+ 
++  struct TitleThreadDrainResult {
++    bool sealed = false;
++    bool creation_complete = false;
++    size_t tracked = 0;
++    size_t pending = 0;
++  };
++  // Opt-in shutdown barrier. Retain before TerminateTitle can erase its map.
++  // These APIs do not destroy Runtime or claim audio/GPU completion.
++  void SealTitleThreadCreation();
++  TitleThreadDrainResult WaitForTitleThreadExit(uint32_t timeout_ms);
++  bool TryBeginTitleThreadCreation() { return title_thread_gate_.TryEnter(); }
++  void EndTitleThreadCreation() { title_thread_gate_.Leave(); }
++
+   void RegisterThread(XThread* thread);
+   void UnregisterThread(XThread* thread);
+   void OnThreadExecute(XThread* thread);
+@@ -396,6 +410,11 @@ class KernelState {
+   std::condition_variable_any dispatch_cond_;
+   std::list<std::function<void()>> dispatch_queue_;
+ 
++  // Appended to preserve existing member offsets in the pinned SDK ABI.
++  TitleThreadGate title_thread_gate_;
++  bool title_drain_active_ = false;  // global_critical_region_
++  std::vector<object_ref<XThread>> title_drain_threads_;  // global_critical_region_
++
+   friend class XObject;
+ };
+ 
+diff --git a/src/system/kernel_state.cpp b/src/system/kernel_state.cpp
+index 697399c..53d0927 100644
+--- a/src/system/kernel_state.cpp
++++ b/src/system/kernel_state.cpp
+@@ -9,6 +9,7 @@
+  * @modified    Tom Clay, 2026 - Adapted for ReXGlue runtime
+  */
+ 
++#include <algorithm>
+ #include <chrono>
+ #include <cstring>
+ #include <filesystem>
+@@ -170,6 +171,10 @@ KernelState::~KernelState() {
+     dispatch_thread_->Wait(0, 0, 0, nullptr);
+   }
+ 
++  // Barrier callers must already have observed native exit. Release retained
++  // thread objects while KernelState, dispatch and guest memory still exist.
++  title_drain_threads_.clear();
++
+   // Unload through UnloadUserModule so the recompiled-DLL teardown runs.
+   // call_entry=false because guest DllMain is unsafe at shutdown.
+   while (!user_modules_.empty()) {
+@@ -1024,7 +1029,9 @@ void KernelState::TerminateTitle() {
+   // Drop refs before the self-terminate below (which does not return) so they
+   // aren't leaked; reset the flag for relaunch.
+   target_threads.clear();
+-  terminating_title_.store(false, std::memory_order_release);
++  if (!title_thread_gate_.sealed()) {
++    terminating_title_.store(false, std::memory_order_release);
++  }
+ 
+   // Self-terminate if called from a guest thread (e.g. XamLoaderTerminateTitle).
+   if (XThread::IsInThread()) {
+@@ -1036,9 +1043,61 @@ void KernelState::TerminateTitle() {
+   }
+ }
+ 
++void KernelState::SealTitleThreadCreation() {
++  title_thread_gate_.Seal();
++  auto global_lock = global_critical_region_.Acquire();
++  if (title_drain_active_) return;
++  title_drain_active_ = true;
++  for (const auto& [id, thread] : threads_by_id_) {
++    if (thread->is_guest_thread()) title_drain_threads_.push_back(retain_object(thread));
++  }
++  // Do not terminate anyone here: the original LaunchTitle still needs to
++  // store its launch path/flags before calling TerminateTitle itself.
++}
++
++KernelState::TitleThreadDrainResult KernelState::WaitForTitleThreadExit(uint32_t timeout_ms) {
++  using clock = std::chrono::steady_clock;
++  const auto deadline = clock::now() + std::chrono::milliseconds(timeout_ms);
++  TitleThreadDrainResult result;
++  result.sealed = title_thread_gate_.sealed();
++  if (!result.sealed) return result;
++  // No kernel/global lock while a creator finishes its native Create/Resume.
++  result.creation_complete = title_thread_gate_.WaitForIdle(std::chrono::milliseconds(timeout_ms));
++  std::vector<object_ref<XThread>> threads;
++  {
++    auto global_lock = global_critical_region_.Acquire();
++    threads = title_drain_threads_;
++  }
++  result.tracked = threads.size();
++  // Don't read a creator's thread_ until the creation lease is released.
++  if (!result.creation_complete) {
++    result.pending = result.tracked;
++    return result;
++  }
++  for (;;) {
++    result.pending = 0;
++    for (const auto& thread : threads) {
++      auto* native = thread->thread();
++      if (native && rex::thread::Wait(native, false, std::chrono::milliseconds(0)) !=
++                        rex::thread::WaitResult::kSuccess) {
++        ++result.pending;
++      }
++    }
++    if (!result.pending || clock::now() >= deadline) return result;
++    std::this_thread::sleep_for(std::chrono::milliseconds(1));
++  }
++}
++
+ void KernelState::RegisterThread(XThread* thread) {
+   auto global_lock = global_critical_region_.Acquire();
+   threads_by_id_[thread->thread_id()] = thread;
++  // Restore registers after entering its creation lease. Retain late
++  // registrations too, even if TerminateTitle already cleared the map.
++  if (title_drain_active_ && thread->is_guest_thread()) {
++    const bool retained = std::any_of(title_drain_threads_.begin(), title_drain_threads_.end(),
++        [thread](const auto& item) { return item.get() == thread; });
++    if (!retained) title_drain_threads_.push_back(retain_object(thread));
++  }
+ 
+   // Thread count is now managed via thread-process linking in
+   // XThread::InitializeGuestObject and XThread::Exit.
+diff --git a/src/system/xthread.cpp b/src/system/xthread.cpp
+index 77bce25..d7de767 100644
+--- a/src/system/xthread.cpp
++++ b/src/system/xthread.cpp
+@@ -327,6 +327,17 @@ void XThread::FreeStack() {
+ }
+ 
+ X_STATUS XThread::Create() {
++  // Constructor registration precedes this lease. Sealing snapshots retain
++  // in-flight objects, and the lease remains live through initial Resume().
++  const bool guest_creation = is_guest_thread();
++  if (guest_creation && !kernel_state_->TryBeginTitleThreadCreation()) {
++    REXSYS_WARN("Title shutdown rejected guest thread creation: id={}", thread_id_);
++    return X_STATUS_THREAD_IS_TERMINATING;
++  }
++  struct CreationLease {
++    KernelState* kernel;
++    ~CreationLease() { if (kernel) kernel->EndTitleThreadCreation(); }
++  } creation_lease{guest_creation ? kernel_state_ : nullptr};
+   // Thread kernel object.
+   if (!CreateNative<X_KTHREAD>()) {
+     REXSYS_WARN("Unable to allocate thread object");
+@@ -1342,6 +1353,12 @@ bool XThread::Save(stream::ByteStream* stream) {
+ }
+ 
+ object_ref<XThread> XThread::Restore(KernelState* kernel_state, stream::ByteStream* stream) {
++  // Restore can create a native thread without passing through Create().
++  if (!kernel_state->TryBeginTitleThreadCreation()) return nullptr;
++  struct RestoreLease {
++    KernelState* kernel;
++    ~RestoreLease() { kernel->EndTitleThreadCreation(); }
++  } creation_lease{kernel_state};
+   // Kind-of a hack, but we need to set the kernel state outside of the object
+   // constructor so it doesn't register a handle with the object table.
+   auto thread = new XThread(nullptr);
+diff --git a/include/rex/system/title_thread_gate.h b/include/rex/system/title_thread_gate.h
+new file mode 100644
+--- /dev/null
++++ b/include/rex/system/title_thread_gate.h
+@@ -0,0 +1,42 @@
++#pragma once
++
++#include <chrono>
++#include <condition_variable>
++#include <cstddef>
++#include <mutex>
++
++namespace rex::system {
++// A Runtime owns one gate. Sealing is permanent; a new Runtime gets a new gate.
++// A creation lease covers allocation, native-thread creation and initial resume.
++class TitleThreadGate {
++ public:
++  bool TryEnter() {
++    std::lock_guard lock(mutex_);
++    if (sealed_) return false;
++    ++creating_;
++    return true;
++  }
++  void Leave() {
++    std::lock_guard lock(mutex_);
++    --creating_;
++    if (!creating_) idle_.notify_all();
++  }
++  void Seal() {
++    std::lock_guard lock(mutex_);
++    sealed_ = true;
++  }
++  bool sealed() const {
++    std::lock_guard lock(mutex_);
++    return sealed_;
++  }
++  bool WaitForIdle(std::chrono::milliseconds timeout) {
++    std::unique_lock lock(mutex_);
++    return idle_.wait_for(lock, timeout, [this] { return !creating_; });
++  }
++ private:
++  mutable std::mutex mutex_;
++  std::condition_variable idle_;
++  size_t creating_ = 0;
++  bool sealed_ = false;
++};
++}  // namespace rex::system

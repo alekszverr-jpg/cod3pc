@@ -9,6 +9,8 @@
 
 REXCVAR_DEFINE_BOOL(cod3_worker_cooperative_exit, false, "Debug",
     "Experimental same-title worker exit with bounded idle waits").debug_only();
+REXCVAR_DEFINE_BOOL(cod3_title_thread_drain, false, "Debug",
+    "Seal guest creation and retain threads through native exit at title reboot").debug_only();
 namespace { std::atomic<bool> title_exit_requested{false}; }
 
 REX_EXTERN(__imp__sub_82343880);
@@ -25,6 +27,10 @@ void ArmCod3WorkerExit(const std::string& path, uint32_t flags) {
   const auto resolved = path == "default.xex" ? "game:\\default.xex" : path;
   if (!cod3::IsCampaignRelaunch(resolved, flags, data.launch_data_present, data.launch_data.size())) return;
   title_exit_requested.store(true, std::memory_order_release);
+  if (REXCVAR_GET(cod3_title_thread_drain)) {
+    rex::system::kernel_state()->SealTitleThreadCreation();
+    REXLOG_INFO("COD3_TITLE_THREAD_CREATION_SEALED");
+  }
   REXLOG_INFO("COD3_WORKER_EXIT_ARMED bytes={}", data.launch_data.size());
 }
 

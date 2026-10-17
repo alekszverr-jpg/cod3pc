@@ -2,6 +2,12 @@
 
 ## Текущий приоритет: бесшовный переход в одном процессе
 
+2026-10-17: bounded idle wait устранил pending в показанном прогоне:
+13 captured / 0 pending; пользователь подтвердил Island. Следующий
+SDK-барьер creation seal + native exit реализован opt-in TitleThreadDrain,
+build/15 tests прошли, runtime-проверка открыта в saint_lo_thread_drain_01.
+Аудио/XMA/GPU callbacks и очистка Runtime остаются незавершёнными.
+
 2026-10-16: получены стеки именно старых pending workers PID 5956.
 Все три находятся в бесконечном non-alertable idle wait, после освобождения
 queue mutant. Подтверждено Ghidra; добавлен opt-in эксперимент повторения

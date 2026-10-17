@@ -3,6 +3,7 @@ param([int]$Seconds = 30, [switch]$Headless, [switch]$Interactive,
     [switch]$FirstMission, [switch]$SynchronousMemexport, [switch]$GpuCoherencyTest,
     [switch]$FullGpuReadback, [switch]$GrassShaderTest, [switch]$StockGpu,
     [switch]$ShaderDiagnostics, [switch]$CooperativeWorkerExit, [switch]$TransitionDump,
+    [switch]$TitleThreadDrain,
     [ValidateRange(0,100)][int]$DofStrength = 100,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugMission,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugProfile,
@@ -49,6 +50,10 @@ $arguments = @('--gpu_plugin',$taskGpuPlugin,'--game_data_root',('"{0}"' -f "$Pr
     '--log_file',('"{0}"' -f $logPath),'--log_level','info')
 if ($Headless) { $arguments += '--headless' }
 if ($CooperativeWorkerExit) { $arguments += '--cod3_worker_cooperative_exit' }
+if ($TitleThreadDrain) {
+    if (!$CooperativeWorkerExit) { throw 'TitleThreadDrain requires CooperativeWorkerExit.' }
+    $arguments += '--cod3_title_thread_drain'
+}
 if ($TransitionDump) { $arguments += '--cod3_transition_dump' }
 if ($Interactive) { $arguments += @('--mnk_mode','true') }
 if ($FirstMission) { $arguments += @('--cl','"+spmap saint_lo"') }

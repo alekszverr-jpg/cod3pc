@@ -1,5 +1,13 @@
 # Состояние проекта
 
+2026-10-17: предыдущий bounded-wait тест успешен: пользователь подтвердил
+Island, лог native-20261016-203735-755.log показывает 13 captured / 0 pending
+до handoff. Добавлен следующий opt-in TitleThreadDrain: SDK запрещает новые
+guest Create/Restore после seal, удерживает объекты потоков и проверяет
+фактический native exit после завершения создания. Strict/native build и
+15 tests прошли. Открыт saint_lo_thread_drain_01 для runtime-проверки.
+Это ещё не барьер audio/GPU и не бесшовный reset. См. SEAMLESS_TRANSITIONS.md.
+
 2026-10-16: дамп старого PID 5956 сопоставлен со всеми тремя pending workers:
 они ждут NtWaitForSingleObjectEx в idle-пути 8212A520. Реальные SDK wait checks
 стоят до/после native wait. Ghidra подтвердил точный caller/timeout; расширен

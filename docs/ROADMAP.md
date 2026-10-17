@@ -78,6 +78,12 @@ idle wait. Сейчас проверяется opt-in повторение ор�
 после этих барьеров очистка DLL/корутин и пересоздание Runtime с тем же окном.
 Подробности и привязка к инструкциям — SEAMLESS_TRANSITIONS.md.
 
+2026-10-17: первый bounded-wait прогон дал 0 pending, Island подтверждена.
+Creation seal и ожидание native exit теперь реализованы в SDK-патче и покрыты
+конкурентным тестом; runtime-проверка opt-in TitleThreadDrain ещё ожидается.
+После неё приоритет — остановка audio/XMA/GPU без живых callbacks и освобождения
+памяти по тайм-ауту, затем очистка и пересоздание Runtime с сохранением окна.
+
 Критерии: один PID и тот же native window до/после Saint-Lo→Island; исходные
 664 байта launch data прочитаны оригинальным startup; старые guest/audio/GPU
 workers завершены до освобождения памяти; старые DLL/fibers/callbacks не
