@@ -4,6 +4,8 @@
 #include <rex/system/xthread.h>
 #include <rex/thread.h>
 #include <rex/cvar.h>
+#include <rex/runtime.h>
+#include <rex/audio/audio_system.h>
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
@@ -12,6 +14,7 @@
 #include <mutex>
 
 REXCVAR_DECLARE(bool, cod3_title_thread_drain);
+REXCVAR_DECLARE(bool, cod3_title_audio_drain);
 
 REXCVAR_DEFINE_BOOL(cod3_transition_dump, false, "Debug",
     "Capture pending old-title workers before process handoff").debug_only();
@@ -110,6 +113,16 @@ void ReportCod3TitleThreads() {
     const auto drain = rex::system::kernel_state()->WaitForTitleThreadExit(5000);
     REXLOG_INFO("COD3_TITLE_THREAD_DRAIN sealed={} creation_complete={} tracked={} pending={}",
         drain.sealed, drain.creation_complete, drain.tracked, drain.pending);
+    if (REXCVAR_GET(cod3_title_audio_drain)) {
+      if (drain.sealed && drain.creation_complete && drain.pending == 0) {
+        auto* audio = dynamic_cast<rex::audio::AudioSystem*>(rex::Runtime::instance()->audio_system());
+        const bool stopped = audio && audio->QuiesceForTitleShutdown(5000);
+        REXLOG_INFO("COD3_TITLE_AUDIO_DRAIN complete={}", stopped);
+        if (!stopped && REXCVAR_GET(cod3_transition_dump)) DumpPendingTitleThreads();
+      } else {
+        REXLOG_ERROR("COD3_TITLE_AUDIO_DRAIN_SKIPPED reason=guest_threads_not_drained");
+      }
+    }
     // Still observational: audio/GPU callbacks and teardown are separate gates.
   }
   // This is evidence, not a permission to free memory: threads created after

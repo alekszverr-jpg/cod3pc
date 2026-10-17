@@ -2,6 +2,11 @@
 
 ## Текущий приоритет: бесшовный переход в одном процессе
 
+2026-10-17: guest creation/native-exit барьер подтверждён: SDK tracked=40,
+pending=0, creation_complete=true, sealed=true. Пользователь подтвердил
+Island. Активный этап — кооперативная остановка audio/XMA без force-kill
+и освобождения данных по timeout; GPU/UI callbacks ещё требуют барьера.
+
 2026-10-17: bounded idle wait устранил pending в показанном прогоне:
 13 captured / 0 pending; пользователь подтвердил Island. Следующий
 SDK-барьер creation seal + native exit реализован opt-in TitleThreadDrain,

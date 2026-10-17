@@ -1,5 +1,54 @@
 # Campaign transition without application restart
 
+## SDK guest drain accepted, audio quiescence in progress, 2026-10-17
+
+User confirmed Island in the SDK-barrier test. Parent
+`native-20261017-094421-086.log` records creation sealed, then at 09:47:55.338
+`captured=13 pending=0` and `sealed=true creation_complete=true tracked=40
+pending=0`. The retained SDK registry includes old threads whose guest handles
+were already released. Successor `-relaunch.log` restores 664 bytes and records
+Island DllMain result 1 and LOAD_RESULT=0. The runtime observation supports
+the guest creation/native-exit barrier in this run; audio/GPU host consumers
+were outside it and same-process reset remains disabled.
+
+Added opt-in `-TitleAudioDrain` (requires TitleThreadDrain), implemented by
+`rexglue-v0100-title-audio-drain.patch` against the same pinned SDK:
+
+- Audio callback admission uses the tested per-title gate. RegisterClient
+  rejects a retiring title; further frame submissions/client removal do not
+  touch retired drivers. Already admitted callbacks may finish normally.
+- Request both Audio Worker and XMA Decoder to stop before waiting for either.
+  Wake work/resume events and the XMA pause fence. Wait on actual native handles
+  with a shared five-second worker deadline, then require zero admitted callbacks.
+- Any timeout/error returns false without terminating a worker, resetting its
+  object, releasing guest contexts, or destroying client drivers. The app logs
+  failure and optionally captures old-process stacks. It retains Runtime/memory
+  and uses the existing process handoff, not an unsafe same-process reset.
+- Only after positive worker exit and callback completion, close SDL client
+  drivers/devices. Pinned SDL source SDL_audiocvt.c:1514 and SDL_audio.h document
+  destruction unbinding the stream/closing its simplified device. The SDL host
+  callback consumes copied host frame queues, not the original guest buffers.
+  Callback argument packets and XMA guest contexts stay allocated until later
+  fully gated Runtime teardown. Shutdown tolerates already-closed drivers and
+  still cleans up after worker_running has been cleared by quiescence.
+- AudioSystem's new method is non-virtual; no IAudioSystem/vtable change or
+  graphics implementation change was made. The app verifies the actual SDK
+  AudioSystem via dynamic_cast and reports failure for an unsupported backend.
+  It calls this only after a positive sealed guest drain.
+
+The normal SDK shutdown fallback remains unchanged for other callers; this
+new opt-in API avoids its force-kill/abandon path. GPU/vsync/UI/dispatch callbacks
+are not yet drained, so success here still cannot authorize Runtime destruction.
+
+Build and all 15 tests passed: `logs/title-audio-drain-{build,tests}-console.log`.
+SDK SHA-256 `14FC22866F0986E345AEB0217F7A01C46B4B62F858A2D13F5E47D9C271B8C1E8`;
+corrected GPU binary rebuilt/relinked with the matching SDK, SHA-256
+`7BBD3BF45CB97154FE69B6ED435EB248E60C410846088DD1DAE44D4E3F3F52E3`.
+One normal-menu run is open in fresh isolated `saint_lo_audio_drain_01` from
+saint_lo_final, DoF 35%. Audio/XMA runtime acceptance is pending. Expected
+evidence: TITLE_AUDIO_DRAIN, TITLE_AUDIO_DEVICES_CLOSED and
+COD3_TITLE_AUDIO_DRAIN complete=true before relaunch. Main save is untouched.
+
 ## Successful idle exit and SDK creation barrier, 2026-10-17
 
 User confirmed Island loaded after the bounded-wait experiment. Parent log

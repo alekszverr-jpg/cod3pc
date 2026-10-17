@@ -1,0 +1,179 @@
+diff --git a/include/rex/audio/audio_system.h b/include/rex/audio/audio_system.h
+index 33fd32c..2e8fa6d 100644
+--- a/include/rex/audio/audio_system.h
++++ b/include/rex/audio/audio_system.h
+@@ -19,6 +19,7 @@
+ #include <rex/system/interfaces/audio.h>
+ #include <rex/system/function_dispatcher.h>
+ #include <rex/system/xthread.h>
++#include <rex/system/title_thread_gate.h>
+ #include <rex/thread.h>
+ #include <rex/thread/mutex.h>
+ 
+@@ -43,6 +44,8 @@ class AudioSystem : public system::IAudioSystem {
+ 
+   virtual X_STATUS Setup(system::KernelState* kernel_state);
+   virtual void Shutdown();
++  // Requires completed guest-thread drain. On timeout retain all resources.
++  bool QuiesceForTitleShutdown(uint32_t timeout_ms);
+ 
+   X_STATUS RegisterClient(uint32_t callback, uint32_t callback_arg, size_t* out_index);
+   void UnregisterClient(size_t index);
+@@ -96,6 +99,7 @@ class AudioSystem : public system::IAudioSystem {
+   bool paused_ = false;
+   rex::thread::Fence pause_fence_;
+   std::unique_ptr<rex::thread::Event> resume_event_;
++  system::TitleThreadGate title_callback_gate_;
+ };
+ 
+ }  // namespace rex::audio
+diff --git a/include/rex/audio/xma/decoder.h b/include/rex/audio/xma/decoder.h
+index df00f06..2ea62b5 100644
+--- a/include/rex/audio/xma/decoder.h
++++ b/include/rex/audio/xma/decoder.h
+@@ -39,6 +39,8 @@ class XmaDecoder {
+ 
+   X_STATUS Setup(system::KernelState* kernel_state);
+   void Shutdown();
++  void RequestTitleShutdown();
++  bool WaitForTitleShutdown(uint32_t timeout_ms);
+ 
+   uint32_t context_array_ptr() const { return register_file_[XmaRegister::ContextArrayAddress]; }
+ 
+diff --git a/src/audio/audio_system.cpp b/src/audio/audio_system.cpp
+index 7a711a8..9f3ee06 100644
+--- a/src/audio/audio_system.cpp
++++ b/src/audio/audio_system.cpp
+@@ -129,6 +129,8 @@ void AudioSystem::WorkerThreadMain() {
+       continue;
+     }
+ 
++    if (!worker_running_.load(std::memory_order_acquire)) break;
++
+     // Number of clients pumped
+     bool pumped = false;
+     if (result.first == rex::thread::WaitResult::kSuccess) {
+@@ -139,7 +141,11 @@ void AudioSystem::WorkerThreadMain() {
+       uint32_t client_callback_arg = clients_[index].wrapped_callback_arg;
+       global_lock.unlock();
+ 
+-      if (client_callback) {
++      if (client_callback && title_callback_gate_.TryEnter()) {
++        struct CallbackLease {
++          system::TitleThreadGate& gate;
++          ~CallbackLease() { gate.Leave(); }
++        } callback_lease{title_callback_gate_};
+         if (diag_pump_count < 10) {
+           REXAPU_DEBUG("AudioWorker: dispatching callback {:08X} with arg {:08X} for client {}",
+                        client_callback, client_callback_arg, index);
+@@ -186,8 +192,51 @@ int AudioSystem::FindFreeClient() {
+ 
+ void AudioSystem::Initialize() {}
+ 
++bool AudioSystem::QuiesceForTitleShutdown(uint32_t timeout_ms) {
++  using clock = std::chrono::steady_clock;
++  const auto deadline = clock::now() + std::chrono::milliseconds(timeout_ms);
++  const auto remaining = [&]() -> uint32_t {
++    const auto now = clock::now();
++    return now < deadline ? static_cast<uint32_t>(
++        std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count()) : 0;
++  };
++  // Seal callback admission, then request both workers stop. No locks are held
++  // while waiting, and no worker/guest contexts are freed on timeout.
++  title_callback_gate_.Seal();
++  worker_running_.store(false, std::memory_order_release);
++  shutdown_event_->Set();
++  resume_event_->Set(); // Also wake a worker paused on its resume event.
++  if (xma_decoder_) xma_decoder_->RequestTitleShutdown();
++  auto* native = worker_thread_ ? worker_thread_->thread() : nullptr;
++  const bool audio_exited = !worker_thread_ || (native &&
++      rex::thread::Wait(native, false, std::chrono::milliseconds(remaining())) ==
++          rex::thread::WaitResult::kSuccess);
++  const bool xma_exited = !xma_decoder_ || xma_decoder_->WaitForTitleShutdown(remaining());
++  const bool callbacks_idle = title_callback_gate_.WaitForIdle(std::chrono::milliseconds(0));
++  REXAPU_INFO("TITLE_AUDIO_DRAIN audio_exited={} xma_exited={} callbacks_idle={} native={}",
++      audio_exited, xma_exited, callbacks_idle, native ? native->system_id() : 0);
++  if (!audio_exited || !xma_exited || !callbacks_idle) return false;
++
++  // DestroyDriver closes the SDL stream/device, synchronizing its host callback
++  // before releasing host frame queues. Keep wrapped callback arguments and XMA
++  // guest context allocations until the later, fully gated Runtime teardown.
++  size_t drivers = 0;
++  {
++    auto global_lock = global_critical_region_.Acquire();
++    for (auto& client : clients_) {
++      if (client.in_use && client.driver) {
++        DestroyDriver(client.driver);
++        client.driver = nullptr;
++        ++drivers;
++      }
++    }
++  }
++  REXAPU_INFO("TITLE_AUDIO_DEVICES_CLOSED drivers={}", drivers);
++  return true;
++}
++
+ void AudioSystem::Shutdown() {
+-  if (!worker_running_) {
++  if (!worker_running_ && !worker_thread_) {
+     return;
+   }
+ 
+@@ -218,7 +267,7 @@ void AudioSystem::Shutdown() {
+   // callback threads) before the semaphores they reference are destroyed.
+   for (size_t i = 0; i < kMaximumClientCount; i++) {
+     if (clients_[i].in_use) {
+-      DestroyDriver(clients_[i].driver);
++      if (clients_[i].driver) DestroyDriver(clients_[i].driver);
+       if (clients_[i].wrapped_callback_arg) {
+         memory()->SystemHeapFree(clients_[i].wrapped_callback_arg);
+       }
+@@ -231,6 +280,7 @@ X_STATUS AudioSystem::RegisterClient(uint32_t callback, uint32_t callback_arg, s
+   REXAPU_DEBUG("AudioSystem::RegisterClient: callback={:08X} callback_arg={:08X}", callback,
+                callback_arg);
+   auto global_lock = global_critical_region_.Acquire();
++  if (title_callback_gate_.sealed()) return X_STATUS_THREAD_IS_TERMINATING;
+ 
+   auto index = FindFreeClient();
+   assert_true(index >= 0);
+@@ -271,6 +321,7 @@ void AudioSystem::SubmitFrame(size_t index, uint32_t samples_ptr) {
+   }
+ 
+   auto global_lock = global_critical_region_.Acquire();
++  if (title_callback_gate_.sealed()) return; // Retiring title no longer accepts frames.
+   assert_true(index < kMaximumClientCount);
+   assert_true(clients_[index].driver != NULL);
+   (clients_[index].driver)->SubmitFrame(samples_ptr);
+@@ -280,6 +331,7 @@ void AudioSystem::UnregisterClient(size_t index) {
+   SCOPE_profile_cpu_f("apu");
+ 
+   auto global_lock = global_critical_region_.Acquire();
++  if (title_callback_gate_.sealed()) return; // Retained resources belong to Shutdown now.
+   assert_true(index < kMaximumClientCount);
+   DestroyDriver(clients_[index].driver);
+   memory()->SystemHeapFree(clients_[index].wrapped_callback_arg);
+diff --git a/src/audio/xma_decoder.cpp b/src/audio/xma_decoder.cpp
+index a0a178d..5a047bc 100644
+--- a/src/audio/xma_decoder.cpp
++++ b/src/audio/xma_decoder.cpp
+@@ -164,6 +164,20 @@ void XmaDecoder::WorkerThreadMain() {
+   }
+ }
+ 
++void XmaDecoder::RequestTitleShutdown() {
++  worker_running_.store(false, std::memory_order_release);
++  paused_.store(false, std::memory_order_release);
++  resume_fence_.Signal();
++  if (work_event_) work_event_->Set();
++}
++
++bool XmaDecoder::WaitForTitleShutdown(uint32_t timeout_ms) {
++  if (!worker_thread_) return true;
++  auto* native = worker_thread_->thread();
++  return native && rex::thread::Wait(native, false, std::chrono::milliseconds(timeout_ms)) ==
++                       rex::thread::WaitResult::kSuccess;
++}
++
+ void XmaDecoder::Shutdown() {
+   if (!worker_thread_) {
+     return;

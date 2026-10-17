@@ -3,13 +3,15 @@ $taskSdkRoot = Join-Path $ProjectRoot 'external/rexglue-sdk'
 if ((& $Git -C $taskSdkRoot rev-parse HEAD) -ne 'c94f5ebdcb3c9d1a460ca48e04f9758448f8d518') {
     throw 'Title thread drain requires pinned ReXGlue 0.10.0.'
 }
-$taskPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-title-thread-drain.patch'
-& $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskPatch 2>$null
-if ($LASTEXITCODE -ne 0) {
-    & $Git -C $taskSdkRoot apply --check --ignore-whitespace $taskPatch
-    if ($LASTEXITCODE -ne 0) { throw 'Title thread drain patch context differs.' }
-    & $Git -C $taskSdkRoot apply --ignore-whitespace $taskPatch
-    if ($LASTEXITCODE -ne 0) { throw 'Applying title thread drain patch failed.' }
+foreach ($taskPatchName in @('rexglue-v0100-title-thread-drain.patch', 'rexglue-v0100-title-audio-drain.patch')) {
+    $taskPatch = Join-Path $PSScriptRoot "patches/$taskPatchName"
+    & $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskPatch 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        & $Git -C $taskSdkRoot apply --check --ignore-whitespace $taskPatch
+        if ($LASTEXITCODE -ne 0) { throw "Lifecycle patch context differs: $taskPatchName" }
+        & $Git -C $taskSdkRoot apply --ignore-whitespace $taskPatch
+        if ($LASTEXITCODE -ne 0) { throw "Applying lifecycle patch failed: $taskPatchName" }
+    }
 }
 & $CMake --build "$taskSdkRoot/out/build/win-amd64" --config RelWithDebInfo --target rexruntime --parallel 4 `
     2>&1 | Tee-Object "$ProjectRoot/logs/title-thread-drain-sdk-build.log"
@@ -21,7 +23,9 @@ $taskOutputs = @(
     @('out/win-amd64/RelWithDebInfo/rexruntimerd.lib', 'lib/rexruntimerd.lib'),
     @('out/win-amd64/RelWithDebInfo/rexruntimerd.pdb', 'bin/rexruntimerd.pdb'),
     @('include/rex/system/kernel_state.h', 'include/rex/system/kernel_state.h'),
-    @('include/rex/system/title_thread_gate.h', 'include/rex/system/title_thread_gate.h')
+    @('include/rex/system/title_thread_gate.h', 'include/rex/system/title_thread_gate.h'),
+    @('include/rex/audio/audio_system.h', 'include/rex/audio/audio_system.h'),
+    @('include/rex/audio/xma/decoder.h', 'include/rex/audio/xma/decoder.h')
 )
 $taskBackup = Join-Path $ProjectRoot 'reports/title-thread-drain/previous-sdk'
 foreach ($taskPair in $taskOutputs) {

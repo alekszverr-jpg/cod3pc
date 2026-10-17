@@ -1,5 +1,19 @@
 # Состояние проекта
 
+2026-10-17: реализован opt-in TitleAudioDrain после успешного guest drain:
+закрывает admission аудиовызовов, кооперативно останавливает audio/XMA,
+проверяет native exit и затем закрывает SDL drivers. При timeout сохраняет
+ресурсы и возвращает failure, без force-kill. Build/15 tests прошли;
+открыт saint_lo_audio_drain_01, runtime-проверка ожидается. GPU/UI/dispatch
+и in-process reset ещё не завершены. См. SEAMLESS_TRANSITIONS.md.
+
+2026-10-17: SDK TitleThreadDrain подтверждён в runtime:
+native-20261017-094421-086.log — sealed=true, creation_complete=true,
+tracked=40, pending=0; 13 captured также завершены. Successor восстановил
+664 байта, Island DllMain вернул 1, LOAD_RESULT=0; пользователь подтвердил
+загрузку. Следующий этап — отдельный барьер audio/XMA, затем GPU/callbacks.
+Одно окно/процесс пока не реализованы. См. SEAMLESS_TRANSITIONS.md.
+
 2026-10-17: предыдущий bounded-wait тест успешен: пользователь подтвердил
 Island, лог native-20261016-203735-755.log показывает 13 captured / 0 pending
 до handoff. Добавлен следующий opt-in TitleThreadDrain: SDK запрещает новые

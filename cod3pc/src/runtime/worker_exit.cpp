@@ -11,6 +11,8 @@ REXCVAR_DEFINE_BOOL(cod3_worker_cooperative_exit, false, "Debug",
     "Experimental same-title worker exit with bounded idle waits").debug_only();
 REXCVAR_DEFINE_BOOL(cod3_title_thread_drain, false, "Debug",
     "Seal guest creation and retain threads through native exit at title reboot").debug_only();
+REXCVAR_DEFINE_BOOL(cod3_title_audio_drain, false, "Debug",
+    "Verify audio and XMA exit without force termination at title reboot").debug_only();
 namespace { std::atomic<bool> title_exit_requested{false}; }
 
 REX_EXTERN(__imp__sub_82343880);
