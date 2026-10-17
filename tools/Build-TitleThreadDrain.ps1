@@ -3,7 +3,7 @@ $taskSdkRoot = Join-Path $ProjectRoot 'external/rexglue-sdk'
 if ((& $Git -C $taskSdkRoot rev-parse HEAD) -ne 'c94f5ebdcb3c9d1a460ca48e04f9758448f8d518') {
     throw 'Title thread drain requires pinned ReXGlue 0.10.0.'
 }
-foreach ($taskPatchName in @('rexglue-v0100-title-thread-drain.patch', 'rexglue-v0100-title-audio-drain.patch')) {
+foreach ($taskPatchName in @('rexglue-v0100-title-thread-drain.patch', 'rexglue-v0100-title-audio-drain.patch', 'rexglue-v0100-title-dispatch-drain.patch')) {
     $taskPatch = Join-Path $PSScriptRoot "patches/$taskPatchName"
     & $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskPatch 2>$null
     if ($LASTEXITCODE -ne 0) {

@@ -7,6 +7,9 @@
 #include <rex/rex_app.h>
 #include <rex/cvar.h>
 #include <rex/logging.h>
+#include <rex/system/kernel_state.h>
+#include <rex/ui/ui_event.h>
+#include <rex/ui/keybinds.h>
 #include <rex/ui/imgui_drawer.h>
 #include <rex/ui/immediate_drawer.h>
 
@@ -19,6 +22,10 @@ void ReportCod3TitleThreads();
 bool Cod3TitleAudioReady();
 bool DrainCod3TitleGpu(rex::system::IGraphicsSystem* graphics);
 REXCVAR_DECLARE(bool, cod3_title_gpu_drain);
+REXCVAR_DECLARE(bool, cod3_title_dispatch_drain);
+void DumpCod3TitleConsumers();
+bool RequestCod3MovieSkip();
+void ResetCod3MovieSkip();
 
 class Cod3pcApp : public rex::ReXApp {
  public:
@@ -43,6 +50,7 @@ class Cod3pcApp : public rex::ReXApp {
   }
 
   void OnPostSetup() override {
+    ResetCod3MovieSkip();
     InstallCod3CrashTrace();
     RestoreCod3TitleHandoff();
     REXLOG_INFO("COD3_GPU_SETTINGS memexport={} memexport_fast={} resolve={} page_refresh={}",
@@ -53,6 +61,7 @@ class Cod3pcApp : public rex::ReXApp {
   }
 
   void OnGuestThreadExit(rex::system::XThread*) override {
+    ResetCod3MovieSkip();
     Cod3TraceLoaderState();
     ReportCod3TitleThreads();
     if (REXCVAR_GET(cod3_title_gpu_drain)) {
@@ -65,13 +74,36 @@ class Cod3pcApp : public rex::ReXApp {
             REXLOG_INFO("COD3_TITLE_PRESENTATION_DETACHED hwnd={}", window()->GetNativeWindowHandle());
           }
         });
-        if (detached) DrainCod3TitleGpu(runtime()->graphics_system());
+        if (detached) {
+          const bool gpu_ready = DrainCod3TitleGpu(runtime()->graphics_system());
+          if (REXCVAR_GET(cod3_title_dispatch_drain)) {
+            if (gpu_ready) {
+              const bool complete = runtime()->kernel_state()->QuiesceDispatchForTitleShutdown(5000);
+              REXLOG_INFO("COD3_TITLE_DISPATCH_DRAIN complete={}", complete);
+              if (!complete) DumpCod3TitleConsumers();
+            } else {
+              REXLOG_ERROR("COD3_TITLE_DISPATCH_DRAIN_SKIPPED reason=gpu_not_drained");
+            }
+          }
+        }
         else REXLOG_ERROR("COD3_TITLE_GPU_DRAIN_SKIPPED reason=ui_detach_failed");
       } else {
         REXLOG_ERROR("COD3_TITLE_GPU_DRAIN_SKIPPED reason=guest_audio_not_drained");
       }
     }
     RelaunchCod3TitleIfRequested();
+  }
+
+  void OnKeyDown(rex::ui::KeyEvent& event) override {
+    const auto key = event.virtual_key();
+    if (!event.prev_state() && !event.is_alt_pressed() &&
+        !event.is_ctrl_pressed() && !event.is_super_pressed() &&
+        (key == rex::ui::VirtualKey::kSpace || key == rex::ui::VirtualKey::kReturn) &&
+        RequestCod3MovieSkip()) {
+      event.set_handled(true);
+      return;
+    }
+    rex::ui::ProcessKeyEvent(event);
   }
 
   // Override virtual hooks for customization:

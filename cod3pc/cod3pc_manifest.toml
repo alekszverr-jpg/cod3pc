@@ -24,4 +24,4 @@ guest_path = "sp/island/island.dll"
 debug_map = "island"
 overlay_group = "cod3_campaign"
 out_directory_path = "generated/island"
-includes = ["configs/island_yields.toml"]
+includes = ["configs/island_yields.toml", "configs/island_functions.toml"]

@@ -1,5 +1,24 @@
 # Состояние проекта
 
+2026-10-17: пропуск загрузочного брифинга по Пробелу/Enter реализован после
+оригинального ожидания ресурсов, с исходной процедурой закрытия видео/звука.
+Правка границы Island 891999E0 установлена. Strict/native build и 15 tests
+прошли; DLL Runtime в приложении и SDK совпали. Открыт один island_movie_skip_01
+(PID 33136) с копией Island checkpoint; игровой результат ещё ожидается.
+См. MOVIE_SKIP.md. Бесшовный reset остаётся незавершённым.
+
+2026-10-17: Kernel Dispatch принят: native_exited=true, retired=0, complete=true;
+Island загрузилась. Граница оригинальной функции Island 891999E0 подтверждена
+Ghidra, строгий codegen и компиляция изменённых объектов прошли; установка
+и повтор входа в здание ещё нужны. По просьбе пользователя исследуется пропуск
+роликов после готовности уровня. Бесшовный reset ещё не включён.
+
+2026-10-17: GPU-барьер подтверждён: command/vsync native exit, queue_idle=true,
+callbacks_idle=true и отсоединение presenter; Island загрузилась. Добавлен
+opt-in Kernel Dispatch drain, SDK/15 tests прошли, full build и runtime-проверка
+ещё впереди. В Island при входе в здание отдельный FATAL 0x891999E0; причина
+не установлена. Бесшовный reset ещё не включён. См. SEAMLESS_TRANSITIONS.md.
+
 2026-10-17: после разрешённого закрытия Island завершены strict/native build
 и установка GPU drain. SHA-256 собранной/установленной GPU DLL совпали.
 Открыт один saint_lo_gpu_drain_01 (PID 58864) с копией финального checkpoint,

@@ -1,5 +1,91 @@
 # Campaign transition without application restart
 
+## Movie skip / Island fix installed, 2026-10-17
+
+After user authorized close, full strict/native Build completed and installed
+both the guarded briefing shortcut and the genuine Island 891999E0 boundary.
+Build.ps1 now verifies the runtime independently of POST_BUILD; installed app
+and SDK runtime hashes both C319700062CF1B7BF791EC739F5FDDD50479CEB7A6B535B31FD96DE7E5C7923C.
+All 15 tests pass. See MOVIE_SKIP.md for original control-flow evidence.
+Opened one normal-menu instance PID 33136 with isolated island_movie_skip_01,
+restored from island_building_crash_01. Log native-20261017-150521-277.log.
+The log subsequently records skip ready 15:06:35.253, accepted 35.452,
+original movie loop closed 35.622 and Island DllMain result=1 at 36.192.
+User gameplay/audio and building-entry replay are pending. No same-process reset yet.
+
+## Dispatch accepted; Island boundary and movie skip follow-up, 2026-10-17
+
+User confirmed Island loaded in `saint_lo_dispatch_drain_01`, parent PID 32156.
+`logs/native-20261017-104025-211.log` at 10:44:04 records guest tracked=40 /
+pending=0, audio/XMA exit, GPU native exit/queue idle, then
+TITLE_DISPATCH_DRAIN native_exited=true retired=0 complete=true and
+COD3_TITLE_DISPATCH_DRAIN complete=true. Handoff still transfers 664 bytes to
+a new process; same-window/runtime recreation is not enabled.
+
+The running test used app runtime B0829A0A0334F0BC58B0E26C968636D0DAFCD993B11B1ABA3ED3F78DF05DE2C6.
+A later startup-compatibility refinement permits queueing before the dispatch
+worker first starts, while rejecting sealed/stopped titles. Prefix runtime is
+C319700062CF1B7BF791EC739F5FDDD50479CEB7A6B535B31FD96DE7E5C7923C.
+An incremental app build did not run its POST_BUILD dependency copy, so this
+later runtime was not installed into the running test. Build.ps1 now explicitly
+copies/verifies the runtime even when Ninja has no app link work; this staging
+fix still needs installation after the game closes. Do not conflate these hashes.
+
+Island crash target reviewed in current original island.dll SHA-256
+679A5B58552ABCE1F8EDD80499A56F1CA4480E285734DC2719528400D8CD4A35:
+`ghidra-island-building-target.log` shows bctr at 891999DC, original blr
+4E800020 at 891999E0, zero padding at E4, another function at E8.
+Added `configs/island_functions.toml` size=4 boundary; no generated function
+was edited. Strict --ignore-stamp codegen passed and produced the original
+return in the function registry. Three changed Island objects compiled.
+Full install and replay at the building remain pending. Preserved the existing
+Island autosave in private verified snapshot `island_building_crash_01`.
+All 15 tests pass (`title-dispatch-island-boundary-tests-retry.log`); the first
+attempt overlapped Ninja's object build and failed to open its deps log, so
+it was repeated sequentially after that build completed.
+
+User requested manual movie skip once the level is loaded, to avoid repeating
+briefings during transition tests. Research of the original WMV player and
+loading-screen input is in progress, using Ghidra on current E057 XEX.
+No movie skip or loading-ready bypass is installed yet.
+
+## GPU accepted; Kernel Dispatch barrier prepared, 2026-10-17
+
+User confirmed Island loaded. Parent `logs/native-20261017-102350-600.log`
+records at 10:27:40: guest creation sealed / tracked=40 / pending=0,
+audio/XMA native exit and callbacks idle, one SDL driver closed, then
+COD3_TITLE_PRESENTATION_DETACHED hwnd=0x180438. GPU command native exit,
+queue_idle=true, vsync exit and callbacks_idle=true precede
+COD3_TITLE_GPU_DRAIN complete=true and the 664-byte process handoff.
+This accepts the GPU barrier for this run; it is still a process transition.
+
+Added opt-in TitleDispatchDrain after positive guest/audio/GPU barriers.
+The SDK seals deferred completion admission under the same global lock used
+by enqueue/dequeue, stops and wakes Kernel Dispatch, retires queued captures
+outside that lock while modules and guest memory are alive, and observes the
+actual native thread handle. A callback already dequeued may finish with old
+Runtime retained. Timeout reports failure without destruction/force-kill.
+Rejected/cancelled retired-title I/O is explicitly logged, never completed with
+invented success. Predicate waiting also prevents empty-queue access on a
+spurious wake. A sealed title cannot recreate this worker via SetExecutableModule.
+No KernelState fields or graphics ABI were added. Patch:
+`tools/patches/rexglue-v0100-title-dispatch-drain.patch`.
+
+SDK compilation and all 15 existing tests passed. Full strict codegen/native
+build is in progress; runtime dispatch acceptance remains pending. Remaining
+work includes raw ExitThread ownership, script fibers, module cleanup and
+same-window Runtime recreation. Neither native thread exit alone nor this
+queue barrier proves host object/context destruction.
+
+Separate Island gameplay crash reported by user on entering a building:
+successor `logs/native-20261017-102350-600-relaunch.log` ends at 10:31:33.708
+with FATAL: invalid/unregistered guest function 0x891999E0 (native thread 59308).
+The failing successor is a new process, so this does not demonstrate an old
+Runtime memory lifetime error. Caller/register evidence is still required;
+no address was guessed or crash suppressed. Preserve this as a separate
+Island progression blocker, without treating initial Island loading as full
+mission acceptance.
+
 ## GPU test installed and launched, 2026-10-17
 
 User authorized closing Island. The window closed normally, full strict

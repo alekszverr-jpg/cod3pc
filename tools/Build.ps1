@@ -72,6 +72,23 @@ try {
                 Invoke-Logged $CMake @('--preset',$preset,"-DCMAKE_PREFIX_PATH=$SdkPrefix", "-DCOD3_CODEGEN_EXECUTABLE=$Rexglue") 'app-configure.log'
                 Invoke-Logged $CMake @('--build','--preset',$preset,'--parallel','4') 'app-build.log'
                 if ($Configuration -eq 'RelWithDebInfo') {
+                    # A runtime-only SDK change can leave Ninja's app link up to
+                    # date, so its POST_BUILD dependency copy will not run.
+                    # Stage and verify the matched runtime even in that case.
+                    $taskRuntimeSource = Join-Path $SdkPrefix 'bin/rexruntimerd.dll'
+                    $taskRuntimeDestination = Join-Path $ProjectRoot "cod3pc/out/build/$preset/rexruntimerd.dll"
+                    if ((Get-FileHash -LiteralPath $taskRuntimeSource).Hash -ne
+                        (Get-FileHash -LiteralPath $taskRuntimeDestination).Hash) {
+                        Copy-Item -LiteralPath $taskRuntimeSource -Destination $taskRuntimeDestination -Force -ErrorAction Stop
+                    }
+                    if ((Get-FileHash -LiteralPath $taskRuntimeSource).Hash -ne
+                        (Get-FileHash -LiteralPath $taskRuntimeDestination).Hash) {
+                        throw 'App runtime does not match the staged lifecycle SDK.'
+                    }
+                    Copy-Item -LiteralPath (Join-Path $SdkPrefix 'bin/rexruntimerd.pdb') `
+                        -Destination (Join-Path (Split-Path $taskRuntimeDestination) 'rexruntimerd.pdb') -Force -ErrorAction Stop
+                }
+                if ($Configuration -eq 'RelWithDebInfo') {
                     & "$PSScriptRoot/Build-GpuGrass.ps1"
                 }
             } finally { Pop-Location }

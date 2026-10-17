@@ -4,6 +4,7 @@ param([int]$Seconds = 30, [switch]$Headless, [switch]$Interactive,
     [switch]$FullGpuReadback, [switch]$GrassShaderTest, [switch]$StockGpu,
     [switch]$ShaderDiagnostics, [switch]$CooperativeWorkerExit, [switch]$TransitionDump,
     [switch]$TitleThreadDrain, [switch]$TitleAudioDrain, [switch]$TitleGpuDrain,
+    [switch]$TitleDispatchDrain,
     [ValidateRange(0,100)][int]$DofStrength = 100,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugMission,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugProfile,
@@ -63,6 +64,10 @@ if ($TitleGpuDrain) {
         throw 'TitleGpuDrain requires TitleAudioDrain and the corrected RelWithDebInfo GPU plugin.'
     }
     $arguments += '--cod3_title_gpu_drain'
+}
+if ($TitleDispatchDrain) {
+    if (!$TitleGpuDrain) { throw 'TitleDispatchDrain requires TitleGpuDrain.' }
+    $arguments += '--cod3_title_dispatch_drain'
 }
 if ($TransitionDump) { $arguments += '--cod3_transition_dump' }
 if ($Interactive) { $arguments += @('--mnk_mode','true') }

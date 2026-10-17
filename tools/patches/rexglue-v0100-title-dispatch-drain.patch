@@ -1,0 +1,98 @@
+diff --git a/include/rex/system/kernel_state.h b/include/rex/system/kernel_state.h
+--- a/include/rex/system/kernel_state.h
++++ b/include/rex/system/kernel_state.h
+@@ -309,6 +309,10 @@
+ 
+   util::NativeList* dpc_list() { return &dpc_list_; }
+ 
++  // Call only after guest creation is sealed and guest/audio/GPU have exited.
++  // Retain KernelState and memory on false; no forced thread termination.
++  bool QuiesceDispatchForTitleShutdown(uint32_t timeout_ms);
++
+   void CompleteOverlapped(uint32_t overlapped_ptr, X_RESULT result);
+   void CompleteOverlappedEx(uint32_t overlapped_ptr, X_RESULT result, uint32_t extended_error,
+                             uint32_t length);
+diff --git a/src/system/kernel_state.cpp b/src/system/kernel_state.cpp
+--- a/src/system/kernel_state.cpp
++++ b/src/system/kernel_state.cpp
+@@ -650,18 +650,18 @@
+   // Spin up deferred dispatch worker.
+   // TODO(benvanik): move someplace more appropriate (out of ctor, but around
+   // here).
+-  if (!dispatch_thread_running_) {
++  if (!dispatch_thread_running_ && !title_thread_gate_.sealed()) {
+     dispatch_thread_running_ = true;
+     dispatch_thread_ = object_ref<XHostThread>(new XHostThread(this, 128 * 1024, 0, [this]() {
+       auto global_lock = global_critical_region_.AcquireDeferred();
+       while (dispatch_thread_running_) {
+         global_lock.lock();
+-        if (dispatch_queue_.empty()) {
+-          dispatch_cond_.wait(global_lock);
+-          if (!dispatch_thread_running_) {
+-            global_lock.unlock();
+-            break;
+-          }
++        dispatch_cond_.wait(global_lock, [this]() {
++          return !dispatch_thread_running_ || !dispatch_queue_.empty();
++        });
++        if (!dispatch_thread_running_) {
++          global_lock.unlock();
++          break;
+         }
+         auto fn = std::move(dispatch_queue_.front());
+         dispatch_queue_.pop_front();
+@@ -1275,11 +1275,17 @@
+ void KernelState::CompleteOverlappedDeferredEx(
+     std::function<X_RESULT(uint32_t&, uint32_t&)> completion_callback, uint32_t overlapped_ptr,
+     std::function<void()> pre_callback, std::function<void()> post_callback) {
++  auto global_lock = global_critical_region_.Acquire();
++  if (!dispatch_thread_running_ && title_thread_gate_.sealed()) {
++    // No completion is fabricated for a retired title. In particular, do not
++    // write IO_PENDING or a thread handle into its guest memory after sealing.
++    REXSYS_WARN("TITLE_DISPATCH_REJECTED overlapped={:08X}", overlapped_ptr);
++    return;
++  }
+   REXSYS_DEBUG("CompleteOverlappedDeferredEx: queuing for overlapped {:08X}", overlapped_ptr);
+   auto ptr = memory()->TranslateVirtual(overlapped_ptr);
+   XOverlappedSetResult(ptr, X_ERROR_IO_PENDING);
+   XOverlappedSetContext(ptr, XThread::GetCurrentThreadHandle());
+-  auto global_lock = global_critical_region_.Acquire();
+   dispatch_queue_.push_back(
+       [this, completion_callback, overlapped_ptr, pre_callback, post_callback]() {
+         REXSYS_DEBUG("Deferred overlapped {:08X}: running pre_callback", overlapped_ptr);
+@@ -1303,6 +1309,35 @@
+   dispatch_cond_.notify_all();
+ }
+ 
++bool KernelState::QuiesceDispatchForTitleShutdown(uint32_t timeout_ms) {
++  if (!title_thread_gate_.sealed()) {
++    REXSYS_ERROR("TITLE_DISPATCH_DRAIN complete=false reason=guest_creation_not_sealed");
++    return false;
++  }
++  std::list<std::function<void()>> retired;
++  object_ref<XHostThread> worker;
++  {
++    // This same lock guards admission, dequeue and the stop decision. A callback
++    // already dequeued may finish while Runtime/modules/memory remain alive.
++    auto global_lock = global_critical_region_.Acquire();
++    dispatch_thread_running_ = false;
++    worker = dispatch_thread_;
++    retired.splice(retired.end(), dispatch_queue_);
++    dispatch_cond_.notify_all();
++  }
++  const auto retired_count = retired.size();
++  // Destroy queued captures outside the kernel lock and before DLL unloading.
++  // The old guest has exited; cancelled work is not reported as completed I/O.
++  retired.clear();
++  auto* native = worker ? worker->thread() : nullptr;
++  const bool exited = !worker || (native &&
++      rex::thread::Wait(native, false, std::chrono::milliseconds(timeout_ms)) ==
++          rex::thread::WaitResult::kSuccess);
++  REXSYS_INFO("TITLE_DISPATCH_DRAIN native_exited={} retired={} complete={}",
++              exited, retired_count, exited);
++  return exited;
++}
++
+ DPCImpersonationScope KernelState::BeginDPCImpersonation() {
+   auto* thread = XThread::GetCurrentThread();
+   auto* ctx = thread->thread_state()->context();

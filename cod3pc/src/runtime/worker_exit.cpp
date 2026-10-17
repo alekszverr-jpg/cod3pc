@@ -15,6 +15,8 @@ REXCVAR_DEFINE_BOOL(cod3_title_audio_drain, false, "Debug",
     "Verify audio and XMA exit without force termination at title reboot").debug_only();
 REXCVAR_DEFINE_BOOL(cod3_title_gpu_drain, false, "Debug",
     "Detach presentation and verify GPU workers and D3D12 queue idle").debug_only();
+REXCVAR_DEFINE_BOOL(cod3_title_dispatch_drain, false, "Debug",
+    "Seal deferred kernel work and verify dispatch native exit after GPU drain").debug_only();
 namespace { std::atomic<bool> title_exit_requested{false}; }
 
 REX_EXTERN(__imp__sub_82343880);
