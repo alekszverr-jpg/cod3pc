@@ -1,5 +1,10 @@
 # План разработки нативного порта Call of Duty 3
 
+Уточнение 2026-10-17: guest и audio/XMA barriers подтверждены runtime-логами
+и загрузкой Island. Сейчас подготовлен GPU/presentation drain; его установка
+и runtime-проверка ещё впереди. После него — Kernel dispatch, очистка владения
+DLL/корутинами и пересоздание Runtime с прежним окном и launch data.
+
 Актуальный этап 2026-10-17: SDK guest creation/native exit подтверждён
 (40 tracked, 0 pending, Island загружена). Следующий блокер — audio/XMA
 и GPU/UI callbacks перед освобождением памяти. Сохранение окна и перезапуск

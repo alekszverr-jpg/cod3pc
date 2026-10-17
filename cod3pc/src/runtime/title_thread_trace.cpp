@@ -6,12 +6,17 @@
 #include <rex/cvar.h>
 #include <rex/runtime.h>
 #include <rex/audio/audio_system.h>
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #include <filesystem>
 #include <memory>
 #include <mutex>
+#include <atomic>
 
 REXCVAR_DECLARE(bool, cod3_title_thread_drain);
 REXCVAR_DECLARE(bool, cod3_title_audio_drain);
@@ -23,6 +28,7 @@ namespace {
 std::mutex probe_mutex;
 std::unique_ptr<Cod3ThreadExitProbe> probe;
 bool incomplete = false;
+std::atomic<bool> title_audio_ready{false};
 
 void DumpPendingTitleThreads() {
   // DbgHelp must run outside the target: dumping oneself may deadlock on
@@ -65,7 +71,12 @@ void DumpPendingTitleThreads() {
 }
 }
 
+void ResetCod3TitleDrainState() { title_audio_ready.store(false, std::memory_order_release); }
+bool Cod3TitleAudioReady() { return title_audio_ready.load(std::memory_order_acquire); }
+void DumpCod3TitleConsumers() { DumpPendingTitleThreads(); }
+
 void CaptureCod3TitleThreads() {
+  ResetCod3TitleDrainState();
   // Called just before the original LaunchTitle import. No thread is suspended,
   // terminated or removed; duplicate handles remain valid after SDK cleanup.
   auto snapshot = std::make_unique<Cod3ThreadExitProbe>();
@@ -117,6 +128,7 @@ void ReportCod3TitleThreads() {
       if (drain.sealed && drain.creation_complete && drain.pending == 0) {
         auto* audio = dynamic_cast<rex::audio::AudioSystem*>(rex::Runtime::instance()->audio_system());
         const bool stopped = audio && audio->QuiesceForTitleShutdown(5000);
+        title_audio_ready.store(stopped, std::memory_order_release);
         REXLOG_INFO("COD3_TITLE_AUDIO_DRAIN complete={}", stopped);
         if (!stopped && REXCVAR_GET(cod3_transition_dump)) DumpPendingTitleThreads();
       } else {

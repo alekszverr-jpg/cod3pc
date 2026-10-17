@@ -1,5 +1,51 @@
 # Campaign transition without application restart
 
+## Audio accepted; GPU/presentation drain prepared, 2026-10-17
+
+Audio test accepted by user: Island loaded without hang or audio problems.
+`native-20261017-095729-879.log` at 10:01:16.981 records guest tracked=40 /
+pending=0 and `audio_exited=true xma_exited=true callbacks_idle=true`.
+At 10:01:17.022 one SDL driver was closed and COD3_TITLE_AUDIO_DRAIN complete=true;
+handoff then transferred 664 bytes. This supports the new audio barrier in
+this run, without establishing GPU/dispatch shutdown or same-process reset.
+
+Prepared opt-in `-TitleGpuDrain` after positive guest+audio drain:
+
+- Detach ImGui/immediate drawer and window presenter on the UI thread, log the
+  retained native window handle. Do not close/reset the window or free Runtime.
+- The already-loaded corrected plugin exposes optional versioned C capability
+  `cod3_gpu_quiesce_title_v1`. IGraphicsSystem and GPU ABI version 1 stay intact;
+  no second backend is loaded. Only corrected RelWithDebInfo runs support this
+  test flag. Unsupported/missing capability reports failure, not success.
+- Seal GPU interrupt callbacks and command-queue admission, request vsync and
+  command workers stop, require actual native exit and zero active interrupts.
+  Already admitted queued functions are completed before command context
+  shutdown; blocking callers use TryCallInThread so rejected work does not leave
+  an unsignaled local fence. Pending function push/pop/inspection use one mutex.
+- D3D12 ShutdownContext records the actual queue-fence result before releasing
+  command resources. On a title-shutdown fence failure, retain those resources.
+  A shared five-second worker deadline returns failure for pending work/threads;
+  a debugger-paused command processor is rejected. Do not force-kill or free
+  guest memory on timeout. Provider/presenter remain alive for later UI teardown.
+- No DLL cleanup, KernelState dispatch drain, Runtime destruction or in-process
+  engine restart is enabled yet. The test still ends in normal process handoff.
+
+Patch: `tools/patches/rexglue-v0100-title-gpu-drain.patch`, applied by
+Build-GpuGrass.ps1 after the existing grass/DoF patches. It was generated against
+a private snapshot of pre-change GPU sources, excluding unrelated existing SDK
+edits. Plugin and changed application objects compiled; all 15 tests passed
+(`title-gpu-drain-app-objects.log`, `title-gpu-drain-tests-console.log`).
+An isolated DLL probe verified ABI=1 and null-system rejection by the optional
+export. GPU runtime acceptance has not happened.
+
+Staging the new GPU DLL initially failed with Windows file-in-use while the
+previous Island window remained open. That window was not stopped without the
+pending user's close approval. Build-GpuGrass now makes copy failure fatal and
+checks source/destination hashes; there is no claim that a failed copy installed
+the plugin. Finish normal Build after the window closes, then open a fresh
+saint_lo_final profile with CooperativeWorkerExit, TitleThreadDrain,
+TitleAudioDrain, TitleGpuDrain and TransitionDump. Main userdata is unchanged.
+
 ## SDK guest drain accepted, audio quiescence in progress, 2026-10-17
 
 User confirmed Island in the SDK-barrier test. Parent

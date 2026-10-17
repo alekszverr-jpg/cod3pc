@@ -1,5 +1,13 @@
 # Состояние проекта
 
+2026-10-17: audio/XMA barrier подтверждён: audio_exited=true,
+xma_exited=true, callbacks_idle=true, закрыт 1 SDL driver; пользователь подтвердил
+Island без зависания и проблем звука. Подготовлен opt-in GPU/presentation drain,
+plugin/app objects скомпилированы, 15 tests прошли. Замена загруженной GPU DLL
+пока заблокирована открытой Island; ответ на запрос закрытия ожидается.
+Полная линковка/установка и runtime-проверка GPU ещё нужны. Runtime и окно
+при переходе пока не пересоздаются в одном процессе. См. SEAMLESS_TRANSITIONS.md.
+
 2026-10-17: реализован opt-in TitleAudioDrain после успешного guest drain:
 закрывает admission аудиовызовов, кооперативно останавливает audio/XMA,
 проверяет native exit и затем закрывает SDL drivers. При timeout сохраняет

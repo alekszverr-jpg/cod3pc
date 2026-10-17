@@ -3,7 +3,7 @@ param([int]$Seconds = 30, [switch]$Headless, [switch]$Interactive,
     [switch]$FirstMission, [switch]$SynchronousMemexport, [switch]$GpuCoherencyTest,
     [switch]$FullGpuReadback, [switch]$GrassShaderTest, [switch]$StockGpu,
     [switch]$ShaderDiagnostics, [switch]$CooperativeWorkerExit, [switch]$TransitionDump,
-    [switch]$TitleThreadDrain, [switch]$TitleAudioDrain,
+    [switch]$TitleThreadDrain, [switch]$TitleAudioDrain, [switch]$TitleGpuDrain,
     [ValidateRange(0,100)][int]$DofStrength = 100,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugMission,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugProfile,
@@ -57,6 +57,12 @@ if ($TitleThreadDrain) {
 if ($TitleAudioDrain) {
     if (!$TitleThreadDrain) { throw 'TitleAudioDrain requires TitleThreadDrain.' }
     $arguments += '--cod3_title_audio_drain'
+}
+if ($TitleGpuDrain) {
+    if (!$TitleAudioDrain -or $taskGpuPlugin -ne 'xenos-grass' -or $Configuration -ne 'RelWithDebInfo') {
+        throw 'TitleGpuDrain requires TitleAudioDrain and the corrected RelWithDebInfo GPU plugin.'
+    }
+    $arguments += '--cod3_title_gpu_drain'
 }
 if ($TransitionDump) { $arguments += '--cod3_transition_dump' }
 if ($Interactive) { $arguments += @('--mnk_mode','true') }

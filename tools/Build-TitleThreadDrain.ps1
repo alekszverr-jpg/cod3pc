@@ -38,8 +38,8 @@ foreach ($taskPair in $taskOutputs) {
     }
     if ((Test-Path -LiteralPath $taskDestination) -and !(Test-Path -LiteralPath $taskPrevious)) {
         New-Item -ItemType Directory -Force (Split-Path $taskPrevious) | Out-Null
-        Copy-Item -LiteralPath $taskDestination -Destination $taskPrevious
+        Copy-Item -LiteralPath $taskDestination -Destination $taskPrevious -ErrorAction Stop
     }
-    Copy-Item -LiteralPath $taskSource -Destination $taskDestination -Force
+    Copy-Item -LiteralPath $taskSource -Destination $taskDestination -Force -ErrorAction Stop
 }
 Get-FileHash -LiteralPath (Join-Path $SdkPrefix 'bin/rexruntimerd.dll') -Algorithm SHA256

@@ -7,6 +7,8 @@
 #include <rex/rex_app.h>
 #include <rex/cvar.h>
 #include <rex/logging.h>
+#include <rex/ui/imgui_drawer.h>
+#include <rex/ui/immediate_drawer.h>
 
 void InstallCod3CrashTrace();
 void Cod3TraceLoaderState();
@@ -14,6 +16,9 @@ void PrepareCod3TitleHandoff();
 void RestoreCod3TitleHandoff();
 void RelaunchCod3TitleIfRequested();
 void ReportCod3TitleThreads();
+bool Cod3TitleAudioReady();
+bool DrainCod3TitleGpu(rex::system::IGraphicsSystem* graphics);
+REXCVAR_DECLARE(bool, cod3_title_gpu_drain);
 
 class Cod3pcApp : public rex::ReXApp {
  public:
@@ -50,6 +55,22 @@ class Cod3pcApp : public rex::ReXApp {
   void OnGuestThreadExit(rex::system::XThread*) override {
     Cod3TraceLoaderState();
     ReportCod3TitleThreads();
+    if (REXCVAR_GET(cod3_title_gpu_drain)) {
+      if (Cod3TitleAudioReady()) {
+        const bool detached = app_context().CallInUIThreadSynchronous([this]() {
+          if (imgui_drawer()) imgui_drawer()->SetPresenterAndImmediateDrawer(nullptr, nullptr);
+          if (immediate_drawer()) immediate_drawer()->SetPresenter(nullptr);
+          if (window()) {
+            window()->SetPresenter(nullptr);
+            REXLOG_INFO("COD3_TITLE_PRESENTATION_DETACHED hwnd={}", window()->GetNativeWindowHandle());
+          }
+        });
+        if (detached) DrainCod3TitleGpu(runtime()->graphics_system());
+        else REXLOG_ERROR("COD3_TITLE_GPU_DRAIN_SKIPPED reason=ui_detach_failed");
+      } else {
+        REXLOG_ERROR("COD3_TITLE_GPU_DRAIN_SKIPPED reason=guest_audio_not_drained");
+      }
+    }
     RelaunchCod3TitleIfRequested();
   }
 

@@ -2,6 +2,12 @@
 
 ## Текущий приоритет: бесшовный переход в одном процессе
 
+2026-10-17: audio/XMA drain принят: оба native workers вышли, callbacks idle,
+SDL device закрыт, Island загружена со звуком. Следующий активный этап —
+GPU/presenter и command/vsync workers. Opt-in код скомпилирован, но новую DLL
+ещё требуется установить после закрытия работающей Island и проверить в игре.
+Kernel dispatch/DLL/fiber cleanup и same-window Runtime reset ещё не реализованы.
+
 2026-10-17: guest creation/native-exit барьер подтверждён: SDK tracked=40,
 pending=0, creation_complete=true, sealed=true. Пользователь подтвердил
 Island. Активный этап — кооперативная остановка audio/XMA без force-kill

@@ -34,11 +34,22 @@ if ($LASTEXITCODE -ne 0) {
     & $Git -C $taskSdkRoot apply --ignore-whitespace $taskDofPatch
     if ($LASTEXITCODE -ne 0) { throw 'Applying DoF setting patch failed.' }
 }
+$taskDrainPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-title-gpu-drain.patch'
+& $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskDrainPatch 2>$null
+if ($LASTEXITCODE -ne 0) {
+    & $Git -C $taskSdkRoot apply --check --ignore-whitespace $taskDrainPatch
+    if ($LASTEXITCODE -ne 0) { throw 'GPU lifecycle patch context differs.' }
+    & $Git -C $taskSdkRoot apply --ignore-whitespace $taskDrainPatch
+    if ($LASTEXITCODE -ne 0) { throw 'Applying GPU lifecycle patch failed.' }
+}
 & $CMake --build "$taskSdkRoot/out/build/win-amd64" --config RelWithDebInfo --target rexgpu-xenos --parallel 4 `
     2>&1 | Tee-Object "$ProjectRoot/logs/gpu-grass-build.log"
 if ($LASTEXITCODE -ne 0) { throw 'Grass test GPU build failed.' }
 $taskGpuSource = Join-Path $taskSdkRoot 'out/win-amd64/RelWithDebInfo/rexgpu-xenosrd.dll'
 $taskGpuTarget = Join-Path $ProjectRoot 'cod3pc/out/build/win-amd64-relwithdebinfo/rexgpu-xenos-grassrd.dll'
-Copy-Item -LiteralPath $taskGpuSource -Destination $taskGpuTarget -Force
+Copy-Item -LiteralPath $taskGpuSource -Destination $taskGpuTarget -Force -ErrorAction Stop
+if ((Get-FileHash -LiteralPath $taskGpuSource).Hash -ne (Get-FileHash -LiteralPath $taskGpuTarget).Hash) {
+    throw 'Staged GPU plugin hash differs from the built plugin.'
+}
 Get-FileHash -LiteralPath $taskGpuTarget -Algorithm SHA256
 Write-Output 'Corrected grass plugin staged. Stock comparison: Run-Native.ps1 -StockGpu.'

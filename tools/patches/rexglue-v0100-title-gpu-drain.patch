@@ -1,0 +1,317 @@
+diff --git a/include/rex/graphics/command_processor.h b/include/rex/graphics/command_processor.h
+--- a/include/rex/graphics/command_processor.h
++++ b/include/rex/graphics/command_processor.h
+@@ -17,6 +17,7 @@
+ #include <memory>
+ #include <mutex>
+ #include <queue>
++#include <mutex>
+ #include <string>
+ #include <unordered_map>
+ #include <vector>
+@@ -27,6 +28,7 @@
+ #include <rex/memory.h>
+ #include <rex/memory/ring_buffer.h>
+ #include <rex/system/xthread.h>
++#include <rex/system/title_thread_gate.h>
+ #include <rex/thread.h>
+ #include <rex/ui/presenter.h>
+ 
+@@ -92,8 +94,11 @@
+ 
+   virtual bool Initialize();
+   virtual void Shutdown();
++  bool RequestTitleShutdown(uint32_t timeout_ms);
++  bool WaitForTitleShutdown(uint32_t timeout_ms);
+ 
+   void CallInThread(std::function<void()> fn);
++  bool TryCallInThread(std::function<void()> fn);
+ 
+   virtual void ClearCaches();
+   virtual void InvalidateGpuMemory();
+@@ -281,6 +286,14 @@
+   reg::DC_LUT_30_COLOR gamma_ramp_256_entry_table_[256] = {};
+   reg::DC_LUT_PWL_DATA gamma_ramp_pwl_rgb_[128][3] = {};
+   uint32_t gamma_ramp_rw_component_ = 0;
++
++ protected:
++  std::atomic<bool> title_shutdown_requested_{false};
++  std::atomic<bool> title_queue_idle_{false};
++  system::TitleThreadGate title_work_gate_;
++  mutable std::mutex pending_fns_mutex_;
++  bool HasPendingFunctions() const;
++  void DrainPendingFunctions();
+ };
+ 
+ }  // namespace rex::graphics
+diff --git a/include/rex/graphics/graphics_system.h b/include/rex/graphics/graphics_system.h
+--- a/include/rex/graphics/graphics_system.h
++++ b/include/rex/graphics/graphics_system.h
+@@ -26,6 +26,7 @@
+ #include <rex/memory.h>
+ #include <rex/system/interfaces/graphics.h>
+ #include <rex/system/xthread.h>
++#include <rex/system/title_thread_gate.h>
+ #include <rex/thread/mutex.h>
+ #include <rex/ui/graphics_provider.h>
+ #include <rex/ui/presenter.h>
+@@ -63,6 +64,8 @@
+                          system::KernelState* kernel_state) override;
+   bool has_presentation() const override { return presenter_ != nullptr; }
+   void Shutdown() override;
++  // Caller must detach UI presentation and complete guest/audio drain first.
++  bool QuiesceForTitleShutdown(uint32_t timeout_ms);
+ 
+   // May be called from any thread any number of times, even during recovery
+   // from a device loss.
+@@ -130,6 +133,7 @@
+   std::unique_ptr<::rex::ui::Presenter> presenter_;
+ 
+   std::atomic_flag host_gpu_loss_reported_;
++  system::TitleThreadGate title_interrupt_gate_;
+ };
+ 
+ }  // namespace rex::graphics
+diff --git a/src/graphics/command_processor.cpp b/src/graphics/command_processor.cpp
+--- a/src/graphics/command_processor.cpp
++++ b/src/graphics/command_processor.cpp
+@@ -154,14 +154,79 @@
+   worker_thread_.reset();
+ }
+ 
++bool CommandProcessor::RequestTitleShutdown(uint32_t timeout_ms) {
++  title_work_gate_.Seal();
++  if (!title_work_gate_.WaitForIdle(std::chrono::milliseconds(timeout_ms))) {
++    REXGPU_WARN("TITLE_GPU_COMMAND_STOP_REJECTED reason=work_admission_timeout");
++    return false;
++  }
++  if (paused_) {
++    REXGPU_WARN("TITLE_GPU_COMMAND_STOP_REJECTED reason=debugger_paused");
++    return false;
++  }
++  title_shutdown_requested_.store(true, std::memory_order_release);
++  worker_running_.store(false, std::memory_order_release);
++  write_ptr_index_event_->Set();
++  return true;
++}
++
++bool CommandProcessor::WaitForTitleShutdown(uint32_t timeout_ms) {
++  const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
++  if (!title_work_gate_.WaitForIdle(std::chrono::milliseconds(timeout_ms))) return false;
++  const auto now = std::chrono::steady_clock::now();
++  const auto remaining = now < deadline
++      ? std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now)
++      : std::chrono::milliseconds(0);
++  auto* native = worker_thread_ ? worker_thread_->thread() : nullptr;
++  const bool exited = native && rex::thread::Wait(native, false, remaining) ==
++                                     rex::thread::WaitResult::kSuccess;
++  const bool idle = title_queue_idle_.load(std::memory_order_acquire);
++  REXGPU_INFO("TITLE_GPU_COMMAND_DRAIN exited={} queue_idle={} native={}",
++      exited, idle, native ? native->system_id() : 0);
++  return exited && idle;
++}
++
+ void CommandProcessor::InitializeShaderStorage(const std::filesystem::path& cache_root,
+                                                uint32_t title_id, bool blocking) {}
+ 
+ void CommandProcessor::CallInThread(std::function<void()> fn) {
++  (void)TryCallInThread(std::move(fn));
++}
++
++bool CommandProcessor::TryCallInThread(std::function<void()> fn) {
++  if (!title_work_gate_.TryEnter()) {
++    REXGPU_WARN("GPU title work rejected after shutdown seal");
++    return false;
++  }
++  struct WorkLease {
++    system::TitleThreadGate& gate;
++    ~WorkLease() { gate.Leave(); }
++  } lease{title_work_gate_};
++  std::unique_lock lock(pending_fns_mutex_);
+   if (pending_fns_.empty() && system::XThread::IsInThread(worker_thread_.get())) {
++    lock.unlock();
+     fn();
+   } else {
+     pending_fns_.push(std::move(fn));
++  }
++  return true;
++}
++
++bool CommandProcessor::HasPendingFunctions() const {
++  std::lock_guard lock(pending_fns_mutex_);
++  return !pending_fns_.empty();
++}
++
++void CommandProcessor::DrainPendingFunctions() {
++  for (;;) {
++    std::function<void()> fn;
++    {
++      std::lock_guard lock(pending_fns_mutex_);
++      if (pending_fns_.empty()) return;
++      fn = std::move(pending_fns_.front());
++      pending_fns_.pop();
++    }
++    fn();
+   }
+ }
+ 
+@@ -204,11 +269,8 @@
+   }
+ 
+   while (worker_running_) {
+-    while (!pending_fns_.empty()) {
+-      auto fn = std::move(pending_fns_.front());
+-      pending_fns_.pop();
+-      fn();
+-    }
++    DrainPendingFunctions();
++    if (!worker_running_.load(std::memory_order_acquire)) break;
+ 
+     uint32_t write_ptr_index = write_ptr_index_.load();
+     if (write_ptr_index == 0xBAADF00D || read_ptr_index_ == write_ptr_index) {
+@@ -229,10 +291,10 @@
+         rex::thread::MaybeYield();
+         loop_count++;
+         write_ptr_index = write_ptr_index_.load();
+-      } while (worker_running_ && pending_fns_.empty() &&
++      } while (worker_running_ && !HasPendingFunctions() &&
+                (write_ptr_index == 0xBAADF00D || read_ptr_index_ == write_ptr_index));
+       ReturnFromWait();
+-      if (!worker_running_ || !pending_fns_.empty()) {
++      if (!worker_running_ || HasPendingFunctions()) {
+         continue;
+       }
+     }
+@@ -252,6 +314,9 @@
+     // but no games seem to actually use it.
+   }
+ 
++  // Resolve admitted callbacks (including completion fences) before backend
++  // teardown. No producer remains after the title creation/admission barrier.
++  if (title_shutdown_requested_.load(std::memory_order_acquire)) DrainPendingFunctions();
+   ShutdownContext();
+ }
+ 
+@@ -262,10 +327,13 @@
+   paused_ = true;
+ 
+   thread::Fence fence;
+-  CallInThread([&fence]() {
++  if (!TryCallInThread([&fence]() {
+     fence.Signal();
+     thread::Thread::GetCurrentThread()->Suspend();
+-  });
++  })) {
++    paused_ = false;
++    return;
++  }
+ 
+   fence.Wait();
+ }
+diff --git a/src/graphics/graphics_system.cpp b/src/graphics/graphics_system.cpp
+--- a/src/graphics/graphics_system.cpp
++++ b/src/graphics/graphics_system.cpp
+@@ -162,7 +162,7 @@
+           uint64_t current_time = chrono::Clock::QueryGuestTickCount();
+           uint64_t interval_ticks =
+               REXCVAR_GET(vsync) ? vsync_interval_ticks : no_vsync_interval_ticks;
+-          while (current_time - last_frame_time >= interval_ticks) {
++          while (vsync_worker_running_ && current_time - last_frame_time >= interval_ticks) {
+             MarkVblank();
+             last_frame_time += interval_ticks;
+           }
+@@ -201,6 +201,31 @@
+   }
+ 
+   provider_.reset();
++}
++
++bool GraphicsSystem::QuiesceForTitleShutdown(uint32_t timeout_ms) {
++  using clock = std::chrono::steady_clock;
++  const auto deadline = clock::now() + std::chrono::milliseconds(timeout_ms);
++  const auto remaining = [&]() -> uint32_t {
++    const auto now = clock::now();
++    return now < deadline ? static_cast<uint32_t>(
++        std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count()) : 0;
++  };
++  title_interrupt_gate_.Seal();
++  vsync_worker_running_.store(false, std::memory_order_release);
++  const bool commands_requested = command_processor_ &&
++      command_processor_->RequestTitleShutdown(remaining());
++  auto* native = vsync_worker_thread_ ? vsync_worker_thread_->thread() : nullptr;
++  const bool vsync_exited = !vsync_worker_thread_ || (native &&
++      rex::thread::Wait(native, false, std::chrono::milliseconds(remaining())) ==
++          rex::thread::WaitResult::kSuccess);
++  const bool commands_exited = commands_requested &&
++      command_processor_->WaitForTitleShutdown(remaining());
++  const bool callbacks_idle = title_interrupt_gate_.WaitForIdle(std::chrono::milliseconds(0));
++  REXGPU_INFO("TITLE_GPU_DRAIN vsync_exited={} commands_exited={} callbacks_idle={} native={}",
++      vsync_exited, commands_exited, callbacks_idle, native ? native->system_id() : 0);
++  // Keep provider/presenter, kernel and memory alive even after a timeout.
++  return vsync_exited && commands_exited && callbacks_idle;
+ }
+ 
+ void GraphicsSystem::OnHostGpuLossFromAnyThread([[maybe_unused]] bool is_responsible) {
+@@ -298,6 +323,11 @@
+   if (!interrupt_callback_) {
+     return;
+   }
++  if (!title_interrupt_gate_.TryEnter()) return;
++  struct InterruptLease {
++    system::TitleThreadGate& gate;
++    ~InterruptLease() { gate.Leave(); }
++  } lease{title_interrupt_gate_};
+ 
+   auto thread = system::XThread::GetCurrentThread();
+   assert_not_null(thread);
+@@ -351,10 +381,10 @@
+       command_processor_->InitializeShaderStorage(cache_root, title_id, true);
+     } else {
+       rex::thread::Fence fence;
+-      command_processor_->CallInThread([this, cache_root, title_id, &fence]() {
++      if (!command_processor_->TryCallInThread([this, cache_root, title_id, &fence]() {
+         command_processor_->InitializeShaderStorage(cache_root, title_id, true);
+         fence.Signal();
+-      });
++      })) return;
+       fence.Wait();
+     }
+   } else {
+diff --git a/src/graphics/plugin_main.cpp b/src/graphics/plugin_main.cpp
+--- a/src/graphics/plugin_main.cpp
++++ b/src/graphics/plugin_main.cpp
+@@ -23,6 +23,17 @@
+ 
+ extern "C" REX_GPU_PLUGIN_EXPORT uint32_t rex_gpu_abi_version(void) {
+   return rex::system::kGpuPluginAbiVersion;
++}
++
++// Optional, versioned capability; preserve the pinned IGraphicsSystem ABI.
++extern "C" REX_GPU_PLUGIN_EXPORT bool cod3_gpu_quiesce_title_v1(
++    rex::system::IGraphicsSystem* system, uint32_t timeout_ms) {
++#if REX_HAS_D3D12
++  auto* graphics = dynamic_cast<rex::graphics::d3d12::D3D12GraphicsSystem*>(system);
++  return graphics && graphics->QuiesceForTitleShutdown(timeout_ms);
++#else
++  return false;
++#endif
+ }
+ 
+ extern "C" REX_GPU_PLUGIN_EXPORT rex::system::IGraphicsSystem* rex_gpu_create(
+diff --git a/src/graphics/d3d12/command_processor.cpp b/src/graphics/d3d12/command_processor.cpp
+--- a/src/graphics/d3d12/command_processor.cpp
++++ b/src/graphics/d3d12/command_processor.cpp
+@@ -1627,7 +1627,12 @@
+ }
+ 
+ void D3D12CommandProcessor::ShutdownContext() {
+-  AwaitAllQueueOperationsCompletion();
++  const bool queue_idle = AwaitAllQueueOperationsCompletion();
++  title_queue_idle_.store(queue_idle, std::memory_order_release);
++  if (title_shutdown_requested_.load(std::memory_order_acquire) && !queue_idle) {
++    REXGPU_ERROR("TITLE_GPU_QUEUE_NOT_IDLE: preserving command resources");
++    return;
++  }
+   InvalidateAllVertexBufferResidency();
+   ShutdownOcclusionQueryResources();
+ 
