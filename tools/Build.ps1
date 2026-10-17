@@ -34,6 +34,11 @@ try {
         if (!(Test-Path -LiteralPath $islandXex) -or (Get-FileHash -LiteralPath $islandXex -Algorithm SHA256).Hash -ne $islandHash) {
             throw 'island.dll differs from reviewed SHA-256; reanalyze the level.'
         }
+        $nightdXex = Join-Path $ProjectRoot 'assets/game/sp/nightd/nightd.dll'
+        $nightdHash = 'AE2F69D2446FED315F298114BDDB3CBFC2CA79D631497F8254B974FAF79177DA'
+        if (!(Test-Path -LiteralPath $nightdXex) -or (Get-FileHash -LiteralPath $nightdXex -Algorithm SHA256).Hash -ne $nightdHash) {
+            throw 'nightd.dll differs from reviewed SHA-256; reanalyze the level.'
+        }
     }
     switch ($Stage) {
         'Tests' {

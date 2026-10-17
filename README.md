@@ -10,15 +10,17 @@ ReXGlue runtime and Xenos GPU backend; it does not launch an emulator process.
 ## Current progress
 
 - Original menu, Saint-Lo training and gameplay run in the native application.
-- The first mission has been completed in manual testing; campaign progression
+- The first two missions have been completed in manual testing; campaign progression
   remains unfinished and this is not a stability guarantee.
 - A Saint-Lo checkpoint has been saved and restored after restarting.
 - Grass rendering has a verified compatibility correction.
 - Optional DoF strength is available; the 35% setting has been visually tested.
 
 `default.xex`, `saint_lo.dll`, and `island.dll` are currently recompiled.
-Island has also loaded successfully with player control in manual testing.
-Full second-mission completion and the campaign transition still need testing.
+The third mission's `nightd.dll` is also built; gameplay verification is pending.
+Briefings can be skipped with Space or Enter after the original resource wait.
+Campaign transitions currently relaunch the native process; preserving the same
+window and Runtime lifecycle is still in development.
 Remaining work includes campaign modules, spatial audio, and broader stability
 testing. Multiplayer is outside the initial scope.
 

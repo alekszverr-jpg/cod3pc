@@ -1,0 +1,20 @@
+# nightd.dll SHA256 ae2f69d2446fed315f298114bddb3cbfc2ca79d631497f8254b974faf79177da
+# Ghidra: PPC context-save prologue and final interface wait call.
+
+[[midasm_hook]]
+address = 0x8915D2FC
+name = "Cod3ReturnFromGuestYield"
+after_instruction = true
+return = true
+
+[[midasm_hook]]
+address = 0x8915D42C
+name = "Cod3ReturnFromGuestYield"
+after_instruction = true
+return = true
+
+[[midasm_hook]]
+address = 0x8915D5B0
+name = "Cod3ReturnFromGuestYield"
+after_instruction = true
+return = true

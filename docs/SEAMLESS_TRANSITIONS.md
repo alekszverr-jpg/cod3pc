@@ -1,5 +1,16 @@
 # Campaign transition without application restart
 
+## Island completed; next missing campaign module, 2026-10-17
+
+User confirmed skip and full Island completion. At 15:22:43 in
+native-20261017-150521-277.log, the current C3197000 runtime passes all guest,
+audio/XMA, GPU/fence and dispatch drains before the 664-byte handoff.
+The successor fails at the third mission because nightd.dll was not statically
+recompiled. See NIGHTDROP.md for original-entry and exact failure evidence.
+Night Drop is now included in strict/native generation/build; manual entry and
+gameplay remain pending. This module integration does not implement same-process
+Runtime recreation; remaining ownership/window work is still active.
+
 ## Movie skip / Island fix installed, 2026-10-17
 
 After user authorized close, full strict/native Build completed and installed

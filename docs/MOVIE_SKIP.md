@@ -64,3 +64,7 @@ Island entry at 15:06:36.192 returned 1. This confirms a PC request reached
 the original skip/cleanup path and subsequent DLL startup. User confirmation
 of gameplay/audio and the building replay is still pending. Early-key rejection
 and another briefing/controller test are not established by this one run.
+
+User acceptance: briefing skipped and the entire Island mission completed.
+The successor also logged another accepted skip before requesting nightd.dll.
+The next crash was missing third-mission native code, tracked in NIGHTDROP.md.
