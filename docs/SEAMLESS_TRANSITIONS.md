@@ -1,5 +1,31 @@
 # Campaign transition without application restart
 
+## GPU test installed and launched, 2026-10-17
+
+User authorized closing Island. The window closed normally, full strict
+codegen/native build completed, and the built/staged corrected plugin hashes
+match: `454ECD4A14831A53E122342E1BEB49381437D24182C0C71CE39EBAB3D86E025C`.
+Log: `logs/title-gpu-drain-full-build-console.log`. This completes the previously
+blocked link/install step; there is no longer a file-in-use staging failure.
+
+Opened one normal-menu cod3pc, PID 58864, isolated checkpoint profile
+`saint_lo_gpu_drain_01`, DoF 35%, all guest/audio/GPU drain flags and TransitionDump.
+Log `native-20261017-102350-600.log` confirms original entry 82344D00.
+Runtime GPU/presentation acceptance is pending. Expected proof includes
+COD3_TITLE_PRESENTATION_DETACHED with the retained HWND,
+TITLE_GPU_COMMAND_DRAIN exited=true/queue_idle=true, TITLE_GPU_DRAIN with both
+workers exited and callbacks idle, and COD3_TITLE_GPU_DRAIN complete=true.
+The test still uses process handoff; no seamless restart is claimed.
+
+Independent follow-up audit: KernelState's separate Kernel Dispatch host thread
+can execute deferred completion callbacks after guest/audio/GPU stops. Its loop
+and queued std::function captures must be sealed, stopped and retired before
+DLL/guest memory reset. Current destructor-only shutdown and a guest drain do
+not establish that barrier. Windows Thread::Exit also calls raw ExitThread;
+ownership of local references/retained thread contexts needs review before
+repeated in-process teardown, rather than assuming native exit frees every
+host object. Neither issue was bypassed in this GPU test.
+
 ## Audio accepted; GPU/presentation drain prepared, 2026-10-17
 
 Audio test accepted by user: Island loaded without hang or audio problems.

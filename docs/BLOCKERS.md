@@ -2,6 +2,10 @@
 
 ## Текущий приоритет: бесшовный переход в одном процессе
 
+2026-10-17: блокировка установки GPU DLL снята после разрешённого закрытия
+Island. Полная сборка/установка завершены; GPU runtime-тест открыт в
+saint_lo_gpu_drain_01. Ожидается результат command/vsync/fence проверок.
+
 2026-10-17: audio/XMA drain принят: оба native workers вышли, callbacks idle,
 SDL device закрыт, Island загружена со звуком. Следующий активный этап —
 GPU/presenter и command/vsync workers. Opt-in код скомпилирован, но новую DLL

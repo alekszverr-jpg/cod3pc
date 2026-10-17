@@ -1,5 +1,12 @@
 # Состояние проекта
 
+2026-10-17: после разрешённого закрытия Island завершены strict/native build
+и установка GPU drain. SHA-256 собранной/установленной GPU DLL совпали.
+Открыт один saint_lo_gpu_drain_01 (PID 58864) с копией финального checkpoint,
+DoF 35 и всеми drain flags; исходный entry подтверждён. Runtime-результат GPU
+пока ожидается. Дальше — Kernel Dispatch/владение контекстами и очистка Runtime;
+переход в одном процессе ещё не включён. См. SEAMLESS_TRANSITIONS.md.
+
 2026-10-17: audio/XMA barrier подтверждён: audio_exited=true,
 xma_exited=true, callbacks_idle=true, закрыт 1 SDL driver; пользователь подтвердил
 Island без зависания и проблем звука. Подготовлен opt-in GPU/presentation drain,
