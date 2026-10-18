@@ -2,6 +2,14 @@
 
 ## Текущий приоритет: бесшовный переход в одном процессе
 
+2026-10-18: игровая проверка self-reference принята: Island загружена,
+reaped=19 pending=0 после всех drain-барьеров (native-20261018-093413-667.log).
+Независимый probe затем доказал утечку ThreadStartData на raw ExitThread.
+Правка Windows TLS-владения прошла normal/Exit/secondary-fiber и три цикла
+Runtime, 16 tests/strict/native build прошли. Установлена; приёмка открыта
+в saint_lo_start_data_01 (PID 39792). Далее — script TLS/fibers,
+остальные ссылки со стека, выгрузка DLL и сохранение окна.
+
 2026-10-18: исправление XThread self-reference установлено после изолированных
 3 циклов Runtime и проверки удержания живого native owner. Открыт переход
 saint_lo_exit_refs_01, игровой результат ещё нужен. Далее остаются другие

@@ -77,4 +77,46 @@ No cod3pc process was open when installing (checked through the external process
 inventory); no user's gameplay was interrupted. Restored a fresh isolated
 saint_lo_exit_refs_01 from saint_lo_final, then opened one normal-menu game,
 PID 29220, log native-20261018-093413-667.log. The real transition/exit-reference
-reap result remains pending. The existing interprocess handoff is retained.
+reap result is accepted: the user confirmed Island loaded. At 09:38:05 all
+guest/audio/GPU/dispatch barriers complete, then COD3_TITLE_EXIT_REFS reports
+reaped=19 pending=0 before the 664-byte successor handoff. The existing
+interprocess handoff is retained; this does not prove complete Runtime reset.
+
+## Native callback ownership, 2026-10-18
+
+The next independent canary reproduced a separate ThreadStartData leak.
+ThreadStartRoutine owns a heap-allocated std::function but its delete follows
+the callback invocation. Thread::Exit calls raw ExitThread, bypassing that
+delete. A shared capture expires after normal return but remains live after
+native exit, even after releasing the native handle owner. Exact reproduction:
+logs/start-routine-probe-before.log, mode=0 released=true, mode=1 released=false,
+exit 38. This is the real SDK callback path, not a mock of its implementation.
+
+Patch rexglue-v0100-start-routine-ownership.patch gives ThreadStartData a
+thread_local unique_ptr owner in the Windows DLL. Normal return resets it;
+explicit native exit releases it through the pinned build's TLS teardown.
+Thread TLS follows the thread across fiber switches; no guest stack unwind,
+forced unknown reference release, FLS callback or public ABI change is added.
+The test verifies capture survival while blocked and release after actual
+native exit for normal return, explicit Thread::Exit and exit from a secondary
+Windows fiber. All three pass with the corrected DLL, followed by three
+successful Runtime ownership cycles in logs/start-routine-probe-after.log.
+
+The first secondary-fiber probe incorrectly called DeleteFiber on the exited
+thread's selected fiber and failed with STATUS_HEAP_CORRUPTION (0xC0000374).
+The corrected diagnostic leaves that retired execution context alone. This
+canary proves callback release, not reclamation of every title-created fiber.
+It does not cover external TerminateThread, arbitrary raw OS-created threads,
+or other C++ references abandoned on guest stacks.
+
+All 16 parser/native tests pass in logs/start-routine-all-tests.log; strict
+codegen passed in logs/start-routine-strict-codegen.log (396 unchanged files,
+no forced generation). Full application build/install passed in
+logs/start-routine-full-build.log. Source, prefix and app runtime SHA-256 match
+1404DBEEFF6D7963945F34F82410F493548098A704DD068C6D551B299A818551;
+the rebuilt corrected GPU plugin is
+679B47BB26B246AD1C5CC687BBF0AB5B8E698B64B5DCFA3186538512C5A285DF.
+The external process inventory found no cod3pc open before installation, so
+no gameplay was interrupted. Restored isolated saint_lo_start_data_01 from
+saint_lo_final and opened one normal-menu PID 39792. Real campaign acceptance
+of this additional patch remains pending.

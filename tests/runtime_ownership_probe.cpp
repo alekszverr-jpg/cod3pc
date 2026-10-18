@@ -10,6 +10,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <memory>
 #include <thread>
 
 using rex::X_STATUS;
@@ -38,10 +39,53 @@ class ObservedThread final : public rex::system::XHostThread {
   // release of unknown references and no unsafe memory teardown after failure.
   std::_Exit(code);
 }
+
+void CheckStartRoutineOwnership(unsigned mode) {
+  std::printf("START_ROUTINE_PROBE mode=%u starting\n", mode);
+  std::fflush(stdout);
+  // A capture must survive while its native callback runs, and be released on
+  // return or raw native Exit, including Exit from a different Windows fiber.
+  auto capture = std::make_shared<int>(42);
+  std::weak_ptr<int> observer = capture;
+  auto ready = rex::thread::Event::CreateManualResetEvent(false);
+  auto release = rex::thread::Event::CreateManualResetEvent(false);
+  void* secondary = nullptr;
+  auto worker = rex::thread::Thread::Create({}, [capture, &ready, &release, &secondary, mode] {
+    ready->Set();
+    if (rex::thread::Wait(release.get(), false, std::chrono::seconds(3)) !=
+        rex::thread::WaitResult::kSuccess) Finish(30);
+    if (*capture != 42) Finish(31);
+    if (mode == 1) rex::thread::Thread::Exit(0);
+    if (mode == 2) {
+      if (!ConvertThreadToFiber(nullptr)) Finish(32);
+      secondary = CreateFiber(128 * 1024, [](void*) { rex::thread::Thread::Exit(0); }, nullptr);
+      if (!secondary) Finish(33);
+      SwitchToFiber(secondary);
+      Finish(34);
+    }
+  });
+  if (!worker) Finish(35);
+  capture.reset();
+  if (rex::thread::Wait(ready.get(), false, std::chrono::seconds(3)) !=
+      rex::thread::WaitResult::kSuccess || observer.expired()) Finish(36);
+  release->Set();
+  if (rex::thread::Wait(worker.get(), false, std::chrono::seconds(3)) !=
+      rex::thread::WaitResult::kSuccess) Finish(37);
+  std::printf("START_ROUTINE_PROBE mode=%u native_wait_complete=true\n", mode);
+  std::fflush(stdout);
+  // Do not DeleteFiber on the exited thread's selected fiber: Windows has
+  // already retired that execution context. This probe checks callback lifetime,
+  // not reclamation of every fiber allocated by a title.
+  worker.reset();
+  std::printf("START_ROUTINE_PROBE mode=%u native_exited=true capture_released=%s\n",
+              mode, observer.expired() ? "true" : "false");
+  if (!observer.expired()) Finish(38);
+}
 }
 
 int main() {
   rex::InitLogging();
+  for (unsigned mode = 0; mode != 3; ++mode) CheckStartRoutineOwnership(mode);
   for (unsigned cycle = 0; cycle != 3; ++cycle) {
     destroyed = 0;
     body_returned = false;

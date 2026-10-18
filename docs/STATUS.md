@@ -1,5 +1,15 @@
 # Состояние проекта
 
+2026-10-18: переход saint_lo_exit_refs_01 принят: Island загрузилась, все
+четыре drain-барьера завершены, COD3_TITLE_EXIT_REFS reaped=19 pending=0
+в native-20261018-093413-667.log. Следующий probe воспроизвёл отдельную утечку
+ThreadStartData; Windows TLS-владение прошло normal/Exit/secondary-fiber
+сценарии и три цикла Runtime. Все 16 tests, strict codegen и native build
+прошли; дополнительная SDK-правка установлена с совпадающими DLL SHA.
+Открыт один saint_lo_start_data_01 (PID 39792), результат перехода ожидается.
+Следом — владение script TLS/fibers, модулей и сохранение окна.
+Переход всё ещё межпроцессный. См. THREAD_EXIT_OWNERSHIP.md.
+
 2026-10-18: self-reference завершившегося XThread перенесена в явную очередь
 освобождения после native exit; thread-fiber освобождается без изменения
 fiber контекста reaper. Изолированные 3 цикла Runtime и blocked-owner проверка

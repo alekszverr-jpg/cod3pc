@@ -1,5 +1,20 @@
 # Campaign transition without application restart
 
+## Exit references accepted; callback capture leak reproduced, 2026-10-18
+
+The user confirmed Island loaded from saint_lo_exit_refs_01. Parent log
+native-20261018-093413-667.log records all four drains complete at 09:38:05,
+then COD3_TITLE_EXIT_REFS reaped=19 pending=0 before the original 664-byte
+interprocess handoff. This accepts the specific XThread ownership correction.
+
+The next SDK canary reproduced a ThreadStartData capture surviving raw native
+exit. A narrow Windows TLS ownership patch passes normal return, explicit Exit,
+and Exit from a secondary fiber, plus three Runtime ownership cycles. See
+THREAD_EXIT_OWNERSHIP.md. All 16 tests, strict codegen and native build passed;
+installed runtime hashes match. One isolated saint_lo_start_data_01 is open
+(PID 39792) for game acceptance. Script TLS/fibers and other abandoned references still need audit;
+same-process/same-window reset is not enabled.
+
 ## Exit-reference correction installed, 2026-10-18
 
 SDK self-reference retirement and owner-exited thread-fiber deletion pass the

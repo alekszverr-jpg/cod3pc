@@ -1,0 +1,23 @@
+--- a/src/core/threading_win.cpp
++++ b/src/core/threading_win.cpp
+@@ -442,12 +442,17 @@
+ struct ThreadStartData {
+   std::function<void()> start_routine;
+ };
++// ExitThread bypasses the trampoline's stack cleanup. Keep callback ownership
++// in thread-local storage so DLL thread-detach cleanup also releases captures
++// on explicit Exit, including Exit from a secondary fiber. This is thread TLS,
++// not fiber-local storage: switching fibers must not retire the live callback.
++thread_local std::unique_ptr<ThreadStartData> current_start_data_;
+ DWORD WINAPI ThreadStartRoutine(LPVOID parameter) {
+   current_thread_ = std::make_unique<Win32Thread>(::GetCurrentThread());
+ 
+-  auto start_data = reinterpret_cast<ThreadStartData*>(parameter);
+-  start_data->start_routine();
+-  delete start_data;
++  current_start_data_.reset(reinterpret_cast<ThreadStartData*>(parameter));
++  current_start_data_->start_routine();
++  current_start_data_.reset();
+   return 0;
+ }
+ 
