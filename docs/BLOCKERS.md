@@ -5,7 +5,8 @@
 2026-10-18: clean old-Runtime teardown принят без ошибок heap/module sweep.
 Активный блокер — первая приёмка нового Runtime в том же HWND/PID. Opt-in
 TitleInProcessRestart подготовлен, regression/strict/app objects проходят;
-финальная установка ждёт закрытия текущей Island. Требуются generation=2 с
+full build установлен после разрешённого закрытия Island. Проверка открыта
+в saint_lo_inprocess_01 (PID 38720). Требуются generation=2 с
 прежними PID/HWND, оригинальный entry/Island entry и управление. См. INPROCESS_RESTART.md.
 
 2026-10-18: Runtime teardown вернул управление при живом окне, DLLs 1 → 0,

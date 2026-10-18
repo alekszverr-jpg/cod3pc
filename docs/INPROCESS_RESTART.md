@@ -61,7 +61,10 @@ application objects compile in logs/title-inprocess-app-objects.log, including
 the installed SDK's consumer source. CLI rejects missing prerequisites and
 accepts the full dry-run command (title-inprocess-cli-invalid/dryrun.log).
 
-The external inventory still shows the user's Island PID 23356. Its loaded
-application files have not been replaced. Closing approval, final native link,
-installation and real same-process game acceptance remain pending. No claim
-of seamless gameplay is made from build success or the prior process handoff.
+After explicit closing approval, requested normal window close and waited for
+the old game to exit. Full native link/install passed in
+logs/title-inprocess-full-build.log. Restored fresh saint_lo_inprocess_01 from
+saint_lo_final and opened one normal-menu PID 38720 with all barriers and
+TitleInProcessRestart enabled, log native-20261018-220651-003.log. Generation 1
+and original entry are logged. Real same-process game acceptance remains pending.
+No claim of seamless gameplay is made from build success or prior process handoff.

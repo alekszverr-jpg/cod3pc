@@ -8,8 +8,9 @@ Runtime globals and unloads its DLL; both previous cleanup errors are absent.
 The next opt-in path captures original launch bytes in memory, releases the
 old watcher, rebuilds presentation/Runtime on UI and launches original startup
 with the same window. No child process is queued in this mode.
-All 16 tests, strict codegen and changed app objects compile. Installation
-awaits closing the current Island; first same-process acceptance remains pending.
+All 16 tests, strict codegen and native build/install pass. After authorized
+normal close, one isolated saint_lo_inprocess_01 is open (PID 38720), log
+native-20261018-220651-003.log. First same-process acceptance remains pending.
 See INPROCESS_RESTART.md for lifecycle ordering and PID/HWND acceptance criteria.
 
 ## Runtime destruction observed; cleanup defects reproduced, 2026-10-18
