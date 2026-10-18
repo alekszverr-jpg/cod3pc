@@ -1,5 +1,25 @@
 # Campaign transition without application restart
 
+## Exit-reference correction installed, 2026-10-18
+
+SDK self-reference retirement and owner-exited thread-fiber deletion pass the
+three-cycle/blocked-owner native regression; all 16 tests pass. Full strict
+application build completed, installed runtime hash matches
+6BA318A36C620C52C07E08C02C7C8A8D4E72EE49CD875F90E954C07F05A8A0EE.
+Opened one normal-menu PID 29220 with isolated saint_lo_exit_refs_01 and original
+final checkpoint; log native-20261018-093413-667.log. Runtime transition result
+is pending. See THREAD_EXIT_OWNERSHIP.md for evidence and remaining limitations.
+
+## Night Drop accepted; thread ownership probe, 2026-10-18
+
+User confirmed third-mission loading/control. The active lifecycle blocker is
+now host object ownership. A separate real SDK probe confirms native exit but
+no XHostThread destruction after table/caller release. The retained Exit self
+reference is transferred to an explicit native-exit retirement registry; thread
+fiber wrappers have a separate owner-exited retirement path. See
+THREAD_EXIT_OWNERSHIP.md. Isolated tests and application validation are separate;
+this does not enable same-window Runtime reset or claim all leaked references fixed.
+
 ## Island completed; next missing campaign module, 2026-10-17
 
 User confirmed skip and full Island completion. At 15:22:43 in

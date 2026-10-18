@@ -53,3 +53,7 @@ Log: logs/native-20261017-153108-502.log. The generated private registry contain
 both original targets 89201B08 and 890689D0. Run-Native -ListLevels reports
 nightd -> nightdrop declared/native/ready, which validates selector metadata,
 not actual mission gameplay. Entry/render/control acceptance is pending.
+
+User acceptance received: the level loaded and the character is controllable.
+Log at 15:32:23.479 records original entry 89201B08 reason=1/result=1 and
+LOAD_RESULT=0. Full Night Drop completion remains unverified.

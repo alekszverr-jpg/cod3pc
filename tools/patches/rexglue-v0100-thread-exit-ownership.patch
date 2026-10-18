@@ -1,0 +1,172 @@
+diff --git a/include/rex/system/kernel_state.h b/include/rex/system/kernel_state.h
+--- a/include/rex/system/kernel_state.h
++++ b/include/rex/system/kernel_state.h
+@@ -351,6 +351,12 @@
+   AchievementManager& achievements() { return achievement_manager_; }
+   const AchievementManager& achievements() const { return achievement_manager_; }
+ 
++  // Transfer Exit's temporary self-reference to an owner that outlives the
++  // native call stack. Reap only after the real native handle is signaled.
++  void RetainThreadThroughNativeExit(object_ref<XThread> thread);
++  size_t ReapExitedThreadObjects();
++  size_t PendingExitedThreadObjects();
++
+   using AchievementUnlockCallback = std::function<void(const AchievementInfo&)>;
+   AchievementListenerHandle RegisterAchievementUnlockCallback(AchievementUnlockCallback cb);
+ 
+diff --git a/src/system/kernel_state.cpp b/src/system/kernel_state.cpp
+--- a/src/system/kernel_state.cpp
++++ b/src/system/kernel_state.cpp
+@@ -46,6 +46,50 @@
+ 
+ namespace rex::system {
+ 
++namespace {
++// Kept outside KernelState to preserve the pinned class member layout. Entries
++// are explicitly drained while their KernelState/memory are still alive.
++std::mutex exited_threads_mutex;
++std::unordered_map<KernelState*, std::vector<object_ref<XThread>>> exited_threads;
++}
++
++void KernelState::RetainThreadThroughNativeExit(object_ref<XThread> thread) {
++  std::lock_guard lock(exited_threads_mutex);
++  exited_threads[this].push_back(std::move(thread));
++}
++
++size_t KernelState::ReapExitedThreadObjects() {
++  std::vector<object_ref<XThread>> ready;
++  {
++    std::lock_guard lock(exited_threads_mutex);
++    const auto found = exited_threads.find(this);
++    if (found == exited_threads.end()) return 0;
++    auto& pending = found->second;
++    for (auto it = pending.begin(); it != pending.end();) {
++      auto* native = (*it)->thread();
++      if (native && rex::thread::Wait(native, false, std::chrono::milliseconds(0)) ==
++                        rex::thread::WaitResult::kSuccess) {
++        ready.push_back(std::move(*it));
++        it = pending.erase(it);
++      } else {
++        ++it;
++      }
++    }
++    if (pending.empty()) exited_threads.erase(found);
++  }
++  const auto count = ready.size();
++  // XThread destructors unregister and free contexts. Never hold our registry
++  // mutex across those callbacks or the kernel global critical region.
++  ready.clear();
++  return count;
++}
++
++size_t KernelState::PendingExitedThreadObjects() {
++  std::lock_guard lock(exited_threads_mutex);
++  const auto found = exited_threads.find(this);
++  return found == exited_threads.end() ? 0 : found->second.size();
++}
++
+ constexpr uint32_t kDeferredOverlappedDelayMillis = 100;
+ 
+ // This is a global object initialized with the XboxkrnlModule.
+@@ -194,6 +238,18 @@
+ 
+   // Safe to reset now: Runtime::Shutdown() has already stopped graphics,
+   // audio, and input before destroying KernelState.
++  // Normal shutdown may have just signaled the dispatch guest object while
++  // its native epilogue is still running. Require actual exit before releasing
++  // the transferred self-references and freeing the old object table/memory.
++  const auto exit_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
++  for (;;) {
++    ReapExitedThreadObjects();
++    if (!PendingExitedThreadObjects()) break;
++    if (std::chrono::steady_clock::now() >= exit_deadline) {
++      REX_FATAL("KernelState destruction blocked: native thread exit references remain");
++    }
++    std::this_thread::sleep_for(std::chrono::milliseconds(1));
++  }
+   object_table_.Reset();
+ 
+   // Destroy any host fibers that were not explicitly cleaned up.
+diff --git a/src/system/xthread.cpp b/src/system/xthread.cpp
+--- a/src/system/xthread.cpp
++++ b/src/system/xthread.cpp
+@@ -89,7 +89,9 @@
+ 
+ XThread::~XThread() {
+   if (main_fiber_) {
+-    main_fiber_->Destroy();
++    assert_true(thread_ && rex::thread::Wait(thread_.get(), false, std::chrono::milliseconds(0)) ==
++                              rex::thread::WaitResult::kSuccess);
++    main_fiber_->DestroyAfterThreadExit();
+     main_fiber_ = nullptr;
+   }
+ 
+@@ -437,6 +439,7 @@
+ 
+   pcr->prcb_data.dpc_active = 0;
+ 
++  kernel_state_->ReapExitedThreadObjects();
+   // Always retain when starting - the thread owns itself until exited.
+   RetainHandle();
+ 
+@@ -548,6 +551,7 @@
+   ReleaseHandle();
+ 
+   // NOTE: this does not return!
++  kernel_state_->RetainThreadThroughNativeExit(std::move(self));
+   rex::thread::Thread::Exit(exit_code);
+   return X_STATUS_SUCCESS;
+ }
+@@ -569,6 +573,7 @@
+     auto self = retain_object(this);
+     FreeStack();
+     ReleaseHandle();
++    kernel_state_->RetainThreadThroughNativeExit(std::move(self));
+     rex::thread::Thread::Exit(exit_code);
+   } else {
+     thread_->Terminate(exit_code);
+diff --git a/include/rex/thread/fiber.h b/include/rex/thread/fiber.h
+--- a/include/rex/thread/fiber.h
++++ b/include/rex/thread/fiber.h
+@@ -47,6 +47,10 @@
+   /// Destroy this fiber. Must not be called while it is executing.
+   void Destroy();
+ 
++  /// Delete only the wrapper of a converted thread fiber after its native
++  /// owner has exited. Must not convert the reaper's current fiber/thread.
++  void DestroyAfterThreadExit();
++
+   /// Returns the fiber currently executing on this thread, or nullptr.
+   static Fiber* Current() { return tls_current_; }
+ 
+diff --git a/src/core/fiber_win32.cpp b/src/core/fiber_win32.cpp
+--- a/src/core/fiber_win32.cpp
++++ b/src/core/fiber_win32.cpp
+@@ -59,6 +59,12 @@
+   delete this;
+ }
+ 
++void Fiber::DestroyAfterThreadExit() {
++  assert(is_thread_fiber_);
++  // Windows already retired the owning thread's execution context.
++  delete this;
++}
++
+ }  // namespace rex::thread
+ 
+ #endif  // REX_PLATFORM_WIN32
+diff --git a/src/core/fiber_posix.cpp b/src/core/fiber_posix.cpp
+--- a/src/core/fiber_posix.cpp
++++ b/src/core/fiber_posix.cpp
+@@ -79,6 +79,11 @@
+   delete this;
+ }
+ 
++void Fiber::DestroyAfterThreadExit() {
++  assert(is_thread_fiber_);
++  delete this;
++}
++
+ }  // namespace rex::thread
+ 
+ #endif  // REX_PLATFORM_LINUX || REX_PLATFORM_MAC

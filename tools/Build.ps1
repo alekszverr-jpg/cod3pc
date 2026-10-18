@@ -45,8 +45,8 @@ try {
             Invoke-Logged $Python @('-m','unittest','discover','-s','tests','-v') 'tests.log'
             $nativeBuild = 'cod3pc/out/build/win-amd64-' + $Configuration.ToLowerInvariant()
             if (Test-Path "$nativeBuild/CMakeCache.txt") {
-                Invoke-Logged $CMake @('--build',$nativeBuild,'--target','cod3_jump_test','cod3_fiber_test','cod3_handoff_test','cod3_thread_exit_test','cod3_thread_gate_test','--parallel','4') 'jump-test-build.log'
-                Invoke-Logged (Join-Path (Split-Path $CMake) 'ctest.exe') @('--test-dir',$nativeBuild,'--output-on-failure','-R','guest_nonlocal_jump|script_fiber_continuations|native_title_handoff|native_thread_exit_probe|native_title_thread_gate') 'jump-tests.log'
+                Invoke-Logged $CMake @('--build',$nativeBuild,'--target','cod3_jump_test','cod3_fiber_test','cod3_handoff_test','cod3_thread_exit_test','cod3_thread_gate_test','cod3_runtime_ownership_probe','--parallel','4') 'jump-test-build.log'
+                Invoke-Logged (Join-Path (Split-Path $CMake) 'ctest.exe') @('--test-dir',$nativeBuild,'--output-on-failure','-R','guest_nonlocal_jump|script_fiber_continuations|native_title_handoff|native_thread_exit_probe|native_title_thread_gate|native_runtime_ownership') 'jump-tests.log'
             }
         }
         'Analyze' { Invoke-Logged $Python @('tools/inspect_game.py','assets/game') 'analysis.log' }

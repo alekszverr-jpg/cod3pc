@@ -66,6 +66,17 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+    # Explicit lifecycle diagnostic, separate from the user's game executable.
+    add_executable(cod3_runtime_ownership_probe EXCLUDE_FROM_ALL ../tests/runtime_ownership_probe.cpp)
+    target_link_libraries(cod3_runtime_ownership_probe PRIVATE rex::runtime)
+    rexglue_apply_target_settings(cod3_runtime_ownership_probe)
+    set_target_properties(cod3_runtime_ownership_probe PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/ownership-probe")
+    add_custom_command(TARGET cod3_runtime_ownership_probe POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:rex::runtime>
+            $<TARGET_FILE_DIR:cod3_runtime_ownership_probe>)
+    add_test(NAME native_runtime_ownership COMMAND cod3_runtime_ownership_probe)
+    set_tests_properties(native_runtime_ownership PROPERTIES TIMEOUT 30)
     add_executable(cod3_thread_gate_test ../tests/title_thread_gate_test.cpp)
     target_link_libraries(cod3_thread_gate_test PRIVATE rex::runtime)
     rexglue_apply_target_settings(cod3_thread_gate_test)

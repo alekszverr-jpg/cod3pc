@@ -81,6 +81,12 @@ class Cod3pcApp : public rex::ReXApp {
               const bool complete = runtime()->kernel_state()->QuiesceDispatchForTitleShutdown(5000);
               REXLOG_INFO("COD3_TITLE_DISPATCH_DRAIN complete={}", complete);
               if (!complete) DumpCod3TitleConsumers();
+              else {
+                const auto reaped = runtime()->kernel_state()->ReapExitedThreadObjects();
+                const auto pending = runtime()->kernel_state()->PendingExitedThreadObjects();
+                REXLOG_INFO("COD3_TITLE_EXIT_REFS reaped={} pending={}", reaped, pending);
+                if (pending) DumpCod3TitleConsumers();
+              }
             } else {
               REXLOG_ERROR("COD3_TITLE_DISPATCH_DRAIN_SKIPPED reason=gpu_not_drained");
             }

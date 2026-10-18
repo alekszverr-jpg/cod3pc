@@ -17,7 +17,8 @@ ReXGlue runtime and Xenos GPU backend; it does not launch an emulator process.
 - Optional DoF strength is available; the 35% setting has been visually tested.
 
 `default.xex`, `saint_lo.dll`, and `island.dll` are currently recompiled.
-The third mission's `nightd.dll` is also built; gameplay verification is pending.
+The third mission's `nightd.dll` also loads with player control in manual testing;
+full third-mission completion remains unverified.
 Briefings can be skipped with Space or Enter after the original resource wait.
 Campaign transitions currently relaunch the native process; preserving the same
 window and Runtime lifecycle is still in development.
