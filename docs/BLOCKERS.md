@@ -2,6 +2,14 @@
 
 ## Текущий приоритет: бесшовный переход в одном процессе
 
+2026-10-18: Runtime teardown вернул управление при живом окне, DLLs 1 → 0,
+но clean acceptance заблокирована двумя ошибками: library вне module sweep
+и Release памяти EXE после shared-heap Reset при загрузке DLL. Обе причины
+воспроизведены реальными XEX, узкий SDK patch проходит optional asset probe,
+16 tests и strict codegen. Нужен переход с отсутствием обеих ошибок; затем
+можно переходить к новому Runtime/presenter в прежнем окне. См. XEX_OWNERSHIP.md.
+Native build установлен; проверка открыта в saint_lo_xex_ownership_01 (PID 2736).
+
 2026-10-18: нулевые script contexts/fibers подтверждены настоящим переходом
 Saint-Lo → Island. Активная проверка — уничтожение старого Runtime после
 освобождения watcher-ссылки главного потока и всех native barriers. Opt-in

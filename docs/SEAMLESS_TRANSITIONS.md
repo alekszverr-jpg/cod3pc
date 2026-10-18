@@ -1,5 +1,19 @@
 # Campaign transition without application restart
 
+## Runtime destruction observed; cleanup defects reproduced, 2026-10-18
+
+User confirmed Island. Parent native-20261018-161702-857.log records actual
+Runtime destruction at 16:21:00.676, cleared globals, a live window and campaign
+DLL count 1 to 0. Preceding library-sweep and heap-release errors prevent clean
+acceptance. A real asset probe independently reproduces both root causes:
+ReadImage resets the shared EXE/DLL heap; unload lookup misses resolved device
+paths. Narrow fixes preserve the executable allocation across sequential real
+campaign images and resolve registry identity through the actual VFS.
+All 16 tests, strict codegen and full native build/install pass; runtime DLL
+hashes match. One isolated saint_lo_xex_ownership_01 is open (PID 2736), log
+native-20261018-214705-386.log; corrected game transition remains pending.
+See XEX_OWNERSHIP.md. Same-process engine restart is still disabled.
+
 ## Script TLS accepted; old Runtime teardown prepared, 2026-10-18
 
 User confirmed Island. Parent native-20261018-153758-546.log records four drains

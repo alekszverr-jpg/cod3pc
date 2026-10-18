@@ -62,8 +62,11 @@ and accepts the complete dry-run command (title-runtime-cli-dryrun.log).
 
 The user had already closed the game; external process inventory was also empty.
 Restored fresh saint_lo_runtime_teardown_01 from saint_lo_final and opened one
-normal-menu PID 39580, log native-20261018-161702-857.log. Real teardown and
-successor acceptance are pending. Main campaign userdata was not modified.
+normal-menu PID 39580, log native-20261018-161702-857.log. User confirmed Island.
+At 16:21:00.676 globals clear and the campaign DLL count drops 1 to 0 while the
+window remains alive. However, preceding module-sweep and heap-release errors
+prevent clean acceptance. Both are reproduced independently and investigated
+in XEX_OWNERSHIP.md. Main campaign userdata was not modified.
 
 After acceptance, remaining work includes reuse of the retained window,
 presentation/input reattachment, Runtime construction inside the same process,

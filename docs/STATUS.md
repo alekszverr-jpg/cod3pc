@@ -1,5 +1,15 @@
 # Состояние проекта
 
+2026-10-18: старый Runtime действительно уничтожился при живом окне,
+globals_cleared=true, campaign_dlls 1 → 0; Island загрузилась. Но в teardown
+найдены ошибки module sweep и heap Release. Реальный XEX probe доказал:
+загрузка DLL сбрасывала учёт памяти EXE, а resolved device path не находился
+в реестре game-relative библиотек. Исправлены shared-heap Reset и VFS lookup;
+последовательные загрузки 3 DLL, 16 tests и strict codegen прошли. Чистая
+игровая приёмка исправлений ещё нужна. Native build установлен с совпадающими
+DLL SHA; открыт один saint_lo_xex_ownership_01 (PID 2736), лог
+native-20261018-214705-386.log. См. XEX_OWNERSHIP.md.
+
 2026-10-18: script TLS принят: contexts=0 fibers=0 complete=true,
 reaped=19 pending=0 после всех native drains в native-20261018-153758-546.log;
 Island загружена. Подготовлен opt-in TitleRuntimeTeardown: watcher сначала

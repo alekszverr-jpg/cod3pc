@@ -1,0 +1,35 @@
+--- a/src/system/kernel_state.cpp
++++ b/src/system/kernel_state.cpp
+@@ -980,6 +980,18 @@
+     if (info.guest_path == normalized)
+       return info;
+   }
++  // UserModule stores the resolved device path, while the manifest records
++  // paths relative to game:. Compare actual VFS identities for unload lookups;
++  // do not match only a basename or strip arbitrary device prefixes.
++  auto requested = file_system()->ResolvePath(guest_path);
++  if (requested) {
++    const auto resolved = NormalizeGuestPath(requested->absolute_path());
++    for (const auto& info : recompiled_modules_) {
++      auto registered = file_system()->ResolvePath("game:\\" + info.guest_path);
++      if (registered && NormalizeGuestPath(registered->absolute_path()) == resolved)
++        return info;
++    }
++  }
+   return std::nullopt;
+ }
+ 
+--- a/src/system/xex_module.cpp
++++ b/src/system/xex_module.cpp
+@@ -460,7 +460,10 @@
+     return 0;
+   }
+ 
+-  memory()->LookupHeap(base_address_)->Reset();
++  // Images share this heap with already-loaded modules. Resetting the entire
++  // heap here discards their allocation records (for example the executable
++  // when loading a level DLL). Each image reader allocates its own fixed range;
++  // a dev-key retry rewrites that same image range, not unrelated allocations.
+ 
+   aes_decrypt_buffer(use_dev_key ? xe_xex2_devkit_key : xe_xex2_retail_key,
+                      reinterpret_cast<const uint8_t*>(xex_security_info()->aes_key), 16,

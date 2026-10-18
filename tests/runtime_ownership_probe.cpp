@@ -5,6 +5,9 @@
 #include <rex/logging.h>
 #include <rex/thread.h>
 #include <rex/thread/fiber.h>
+#include <rex/kernel/init.h>
+#include <rex/system/user_module.h>
+#include <rex/system/xmemory.h>
 #include <Windows.h>
 #include <atomic>
 #include <chrono>
@@ -106,10 +109,60 @@ void CheckSuspendedTaskExit() {
   std::printf("SCRIPT_TLS_PROBE suspended_before_exit=1 native_exited=true fibers_remaining=%zu\n", remaining);
   if (remaining) Finish(46);
 }
+
+// Optional local asset diagnostic. Parses real user-owned XEX files without
+// launching guest code, loading an emulator, or treating dummy code as a game.
+void CheckXexOwnership(const std::filesystem::path& root) {
+  auto runtime = std::make_unique<rex::Runtime>(root);
+  rex::RuntimeConfig config;
+  config.tool_mode = true;
+  config.kernel_init = rex::kernel::InitializeKernel;
+  if (runtime->Setup(std::move(config)) != X_STATUS_SUCCESS) Finish(50);
+  auto* kernel = runtime->kernel_state();
+  rex::system::object_ref<rex::system::UserModule> exe(new rex::system::UserModule(kernel));
+  if (exe->LoadFromFile("game:\\default.xex") != X_STATUS_SUCCESS) Finish(51);
+  const auto base = exe->xex_module()->base_address();
+  rex::memory::HeapAllocationInfo before{}, after{};
+  auto* heap = runtime->memory()->LookupHeap(base);
+  if (!heap->QueryRegionInfo(base, &before) || !before.state) Finish(52);
+  rex::system::object_ref<rex::system::UserModule> level(new rex::system::UserModule(kernel));
+  if (level->LoadFromFile("game:\\sp\\saint_lo\\saint_lo.dll") != X_STATUS_SUCCESS) Finish(53);
+  if (!heap->QueryRegionInfo(base, &after)) Finish(54);
+  kernel->RegisterRecompiledModule("saint_lo.dll", "sp/saint_lo/saint_lo.dll", "cod3pc_saint_lo.dll");
+  const auto alias = kernel->FindRecompiledModule(level->path());
+  if (kernel->FindRecompiledModule("game:\\unrelated\\saint_lo.dll")) Finish(57);
+  const bool preserved = before.state == after.state && before.allocation_base == after.allocation_base &&
+      before.allocation_size == after.allocation_size;
+  std::printf("XEX_OWNERSHIP_PROBE entry=%08X before_state=%u after_state=%u allocation_preserved=%s resolved_path_match=%s\n",
+      base, before.state, after.state, preserved ? "true" : "false", alias ? "true" : "false");
+  std::printf("XEX_OWNERSHIP_PROBE level_path=%s\n", level->path().c_str());
+  if (!preserved || !alias) Finish(55);
+  if (level->Delete() != X_STATUS_SUCCESS || exe->Delete() != X_STATUS_SUCCESS) Finish(56);
+  level.reset();
+  // Exercise genuine overlapping campaign images sequentially while the same
+  // executable stays mapped. Never execute guest entrypoints in this probe.
+  for (const char* path : {"sp/island/island.dll", "sp/nightd/nightd.dll", "sp/saint_lo/saint_lo.dll"}) {
+    rex::system::object_ref<rex::system::UserModule> next(new rex::system::UserModule(kernel));
+    if (next->LoadFromFile(std::string("game:\\") + path) != X_STATUS_SUCCESS) Finish(58);
+    if (!heap->QueryRegionInfo(base, &after) || before.state != after.state ||
+        before.allocation_base != after.allocation_base || before.allocation_size != after.allocation_size) Finish(59);
+    std::printf("XEX_OWNERSHIP_PROBE next=%s allocation_preserved=true\n", path);
+    if (next->Delete() != X_STATUS_SUCCESS) Finish(60);
+  }
+  exe.reset();
+  runtime.reset();
+  if (rex::Runtime::instance() || rex::system::KernelState::shared()) Finish(61);
+  std::printf("XEX_OWNERSHIP_PROBE runtime_destroyed=true globals_cleared=%s\n",
+      !rex::Runtime::instance() && !rex::system::KernelState::shared() ? "true" : "false");
+}
 }
 
-int main() {
+int main(int argc, char** argv) {
   rex::InitLogging();
+  if (argc == 3 && std::string_view(argv[1]) == "--game-root") {
+    CheckXexOwnership(argv[2]);
+    Finish(0);
+  }
   for (unsigned mode = 0; mode != 3; ++mode) CheckStartRoutineOwnership(mode);
   CheckSuspendedTaskExit();
   for (unsigned cycle = 0; cycle != 3; ++cycle) {

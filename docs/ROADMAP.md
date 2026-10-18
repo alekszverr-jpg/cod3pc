@@ -1,5 +1,10 @@
 # План разработки нативного порта Call of Duty 3
 
+Уточнение 2026-10-18: уничтожение старого Runtime/выгрузка DLL подтверждены,
+но обнаружены ошибки очистки. Перед same-process restart требуется чистая
+приёмка исправлений общей XEX heap и resolved VFS module lookup. Реальный
+загрузочный probe/16 tests/strict codegen проходят. См. XEX_OWNERSHIP.md.
+
 Уточнение 2026-10-18: script contexts/fibers обнуляются на настоящем переходе.
 Следующий критерий — положительное уничтожение старого Runtime и выгрузка
 campaign DLLs до межпроцессного handoff. Эксперимент TitleRuntimeTeardown
