@@ -1,5 +1,13 @@
 # Состояние проекта
 
+2026-10-18: первый same-process тест достиг generation=2 при прежних PID/HWND
+и повторного original entry, но завис на SDL input. Дамп выявил watch со старым
+userdata: SDL-драйвер не очищался при сохранённом окне. Добавлен UI detach с
+удалением watch/listener и drain pending pump; защищённый native canary до
+правки падал 0xC0000005, после проходит. 16 tests, strict/full build прошли.
+Открыт один saint_lo_inprocess_input_01 (PID 51848), лог
+native-20261018-222816-941.log; игровая приёмка ещё нужна. См. INPUT_RETIREMENT.md.
+
 2026-10-18: чистый teardown принят: Saint-Lo сняла регистрацию 6073 функций,
 DLLs 1 → 0, globals cleared; прежних ошибок heap/module sweep нет в
 native-20261018-214705-386.log, Island загружена. Подготовлен opt-in

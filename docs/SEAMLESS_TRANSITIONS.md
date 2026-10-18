@@ -1,5 +1,18 @@
 # Campaign transition without application restart
 
+## Generation 2 reached; SDL watch hang corrected, 2026-10-18
+
+First same-process test keeps PID 38720/HWND 0x130b6a, creates generation 2,
+restores 664 bytes and enters original startup. User reports black screen/hang;
+dump shows UI dispatching a stale SDL input watch while guest input waits on
+SDL's watch lock. Driver destructor never detached from the retained window.
+Named watch removal/UI teardown now pass a real driver PAGE_NOACCESS canary
+(previously 0xC0000005), all 16 tests, strict codegen and full native build.
+Saved diagnostics before stopping only the known hung isolated process.
+One fresh saint_lo_inprocess_input_01 is open (PID 51848), log
+native-20261018-222816-941.log; Island/control/audio acceptance remains pending.
+See INPUT_RETIREMENT.md. Same-process mode remains opt-in.
+
 ## Clean teardown accepted; same-window reconstruction prepared, 2026-10-18
 
 User confirmed Island from saint_lo_xex_ownership_01. At 21:51:32 parent

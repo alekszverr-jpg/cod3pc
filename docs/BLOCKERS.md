@@ -2,6 +2,12 @@
 
 ## Текущий приоритет: бесшовный переход в одном процессе
 
+2026-10-18: same PID/HWND и original startup второго Runtime подтверждены,
+но первый тест завис в stale SDL input watch. Изолированный настоящий драйвер
+воспроизводит use-after-free (PAGE_NOACCESS); detach исправлен, 16 tests и
+strict/full build проходят. Активная проверка — Island/control/audio после
+правки в saint_lo_inprocess_input_01 (PID 51848). См. INPUT_RETIREMENT.md.
+
 2026-10-18: clean old-Runtime teardown принят без ошибок heap/module sweep.
 Активный блокер — первая приёмка нового Runtime в том же HWND/PID. Opt-in
 TitleInProcessRestart подготовлен, regression/strict/app objects проходят;

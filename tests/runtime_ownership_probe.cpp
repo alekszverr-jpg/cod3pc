@@ -8,6 +8,8 @@
 #include <rex/kernel/init.h>
 #include <rex/system/user_module.h>
 #include <rex/system/xmemory.h>
+#include <rex/input/sdl/sdl_input_driver.h>
+#include <rex/ui/windowed_app_context_sdl.h>
 #include <Windows.h>
 #include <atomic>
 #include <chrono>
@@ -155,15 +157,55 @@ void CheckXexOwnership(const std::filesystem::path& root) {
   std::printf("XEX_OWNERSHIP_PROBE runtime_destroyed=true globals_cleared=%s\n",
       !rex::Runtime::instance() && !rex::system::KernelState::shared() ? "true" : "false");
 }
+
+void CheckInputRetirement() {
+  rex::ui::SDLWindowedAppContext context;
+  if (!context.Initialize()) Finish(70);
+  auto window = rex::ui::Window::Create(context, "Input retirement diagnostic", 320, 200);
+  // Do not Open(): use the real SDK context/window and driver without showing
+  // another window. Keep a separate SDL reference across driver destruction.
+  if (!SDL_InitSubSystem(SDL_INIT_GAMEPAD)) Finish(71);
+  using Driver = rex::input::sdl::SDLInputDriver;
+  auto* storage = VirtualAlloc(nullptr, sizeof(Driver), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+  if (!storage) Finish(72);
+  auto* driver = new (storage) Driver(window.get(), 0);
+  if (driver->Setup() != X_STATUS_SUCCESS) Finish(73);
+  driver->OnWindowAvailable(window.get());
+  driver->~Driver();
+  // Any stale SDL watch now deterministically touches inaccessible storage,
+  // rather than occasionally locking a freed/reused mutex in another Runtime.
+  DWORD previous = 0;
+  if (!VirtualProtect(storage, sizeof(Driver), PAGE_NOACCESS, &previous)) Finish(74);
+  unsigned observed = 0;
+  const auto watch = +[](void* data, SDL_Event* event) -> bool {
+    if (event->type == SDL_EVENT_GAMEPAD_AXIS_MOTION) ++*static_cast<unsigned*>(data);
+    return true;
+  };
+  if (!SDL_AddEventWatch(watch, &observed)) Finish(75);
+  SDL_Event event{};
+  event.type = SDL_EVENT_GAMEPAD_AXIS_MOTION;
+  if (!SDL_PushEvent(&event) || observed != 1) Finish(76);
+  SDL_RemoveEventWatch(watch, &observed);
+  context.ExecutePendingFunctionsFromUIThread();
+  if (!VirtualFree(storage, 0, MEM_RELEASE)) Finish(77);
+  SDL_QuitSubSystem(SDL_INIT_GAMEPAD);
+  window.reset();
+  std::puts("INPUT_RETIREMENT_PROBE driver_destroyed=true protected_storage=true event_dispatched=true stale_callback=false");
+}
 }
 
 int main(int argc, char** argv) {
   rex::InitLogging();
+  if (argc == 2 && std::string_view(argv[1]) == "--input-lifecycle") {
+    CheckInputRetirement();
+    Finish(0);
+  }
   if (argc == 3 && std::string_view(argv[1]) == "--game-root") {
     CheckXexOwnership(argv[2]);
     Finish(0);
   }
   for (unsigned mode = 0; mode != 3; ++mode) CheckStartRoutineOwnership(mode);
+  CheckInputRetirement();
   CheckSuspendedTaskExit();
   for (unsigned cycle = 0; cycle != 3; ++cycle) {
     destroyed = 0;

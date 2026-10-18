@@ -1,5 +1,11 @@
 # План разработки нативного порта Call of Duty 3
 
+Уточнение 2026-10-18: второй Runtime стартует в том же HWND/PID. Первый
+игровой тест остановился на SDL callback lifetime; исправление подтверждено
+защищённым native canary и установлено. Требуется реальная загрузка Island с
+управлением/звуком, затем повторные переходы/меню/fullscreen. Режим остаётся
+opt-in. См. INPUT_RETIREMENT.md.
+
 Уточнение 2026-10-18: clean teardown старого Runtime принят. Следующий
 критерий — Island с новым Runtime при прежних PID/HWND и оригинальном launch
 state. Opt-in код подготовлен; tests/strict/app objects проходят, игровая

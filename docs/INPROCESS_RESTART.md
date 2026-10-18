@@ -68,3 +68,8 @@ saint_lo_final and opened one normal-menu PID 38720 with all barriers and
 TitleInProcessRestart enabled, log native-20261018-220651-003.log. Generation 1
 and original entry are logged. Real same-process game acceptance remains pending.
 No claim of seamless gameplay is made from build success or prior process handoff.
+
+First test reached generation 2 in the same PID/HWND and original startup, but
+the user reported black screen/hang. The dump identifies a retained SDL input
+watch after old driver destruction. Correction, regression and the next manual
+test are recorded in INPUT_RETIREMENT.md; Island acceptance is still pending.

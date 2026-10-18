@@ -68,6 +68,9 @@ include(CTest)
 if(BUILD_TESTING)
     # Explicit lifecycle diagnostic, separate from the user's game executable.
     add_executable(cod3_runtime_ownership_probe EXCLUDE_FROM_ALL ../tests/runtime_ownership_probe.cpp src/runtime/fiber_task.cpp)
+    # Bind the actual pinned SDL driver and event injection to one SDL instance.
+    # rexruntime and consumers otherwise carry separate static SDL copies.
+    target_sources(cod3_runtime_ownership_probe PRIVATE ../external/rexglue-sdk/src/input/sdl/sdl_input_driver.cpp)
     target_link_libraries(cod3_runtime_ownership_probe PRIVATE rex::runtime)
     rexglue_apply_target_settings(cod3_runtime_ownership_probe)
     set_target_properties(cod3_runtime_ownership_probe PROPERTIES
