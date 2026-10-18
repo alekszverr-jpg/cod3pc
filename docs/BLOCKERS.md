@@ -2,6 +2,14 @@
 
 ## Текущий приоритет: бесшовный переход в одном процессе
 
+2026-10-18: ThreadStartData принят на Saint-Lo → Island, все четыре drain
+успешны, reaped=19 pending=0. Активная проверка — script TLS/fiber ownership:
+изолированный реальный Cod3FiberTask освобождается при native exit, но игровые
+контексты ещё нужно измерить. Добавлены SCRIPT_TLS_RETIRED и
+COD3_TITLE_SCRIPT_DRAIN; 16 tests, strict codegen/app objects прошли.
+Full build установлен, проверка открыта в saint_lo_script_tls_01 (PID 4968).
+Остались другие stack refs, выгрузка модулей и отделение окна от Runtime.
+
 2026-10-18: игровая проверка self-reference принята: Island загружена,
 reaped=19 pending=0 после всех drain-барьеров (native-20261018-093413-667.log).
 Независимый probe затем доказал утечку ThreadStartData на raw ExitThread.

@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <memory>
 #include <thread>
+#include "../cod3pc/src/runtime/fiber_task.h"
 
 using rex::X_STATUS;
 
@@ -20,6 +21,7 @@ std::atomic<unsigned> destroyed{0};
 std::atomic<bool> body_returned{false};
 std::atomic<bool> allow_return{false};
 std::atomic<rex::thread::Fiber*> worker_fiber{nullptr};
+thread_local std::unique_ptr<Cod3FiberTask> suspended_task;
 class ObservedThread final : public rex::system::XHostThread {
  public:
   explicit ObservedThread(rex::system::KernelState* kernel)
@@ -81,11 +83,35 @@ void CheckStartRoutineOwnership(unsigned mode) {
               mode, observer.expired() ? "true" : "false");
   if (!observer.expired()) Finish(38);
 }
+
+void CheckSuspendedTaskExit() {
+  auto ready = rex::thread::Event::CreateManualResetEvent(false);
+  auto release = rex::thread::Event::CreateManualResetEvent(false);
+  if (Cod3FiberTask::LiveCount()) Finish(40);
+  auto worker = rex::thread::Thread::Create({}, [&ready, &release] {
+    suspended_task = std::make_unique<Cod3FiberTask>([](void*) { suspended_task->Suspend(); }, nullptr);
+    if (suspended_task->Resume()) Finish(41);
+    ready->Set();
+    if (rex::thread::Wait(release.get(), false, std::chrono::seconds(3)) !=
+        rex::thread::WaitResult::kSuccess) Finish(42);
+    rex::thread::Thread::Exit(0);
+  });
+  if (!worker || rex::thread::Wait(ready.get(), false, std::chrono::seconds(3)) !=
+      rex::thread::WaitResult::kSuccess) Finish(43);
+  if (Cod3FiberTask::LiveCount() != 1) Finish(44);
+  release->Set();
+  if (rex::thread::Wait(worker.get(), false, std::chrono::seconds(3)) !=
+      rex::thread::WaitResult::kSuccess) Finish(45);
+  const auto remaining = Cod3FiberTask::LiveCount();
+  std::printf("SCRIPT_TLS_PROBE suspended_before_exit=1 native_exited=true fibers_remaining=%zu\n", remaining);
+  if (remaining) Finish(46);
+}
 }
 
 int main() {
   rex::InitLogging();
   for (unsigned mode = 0; mode != 3; ++mode) CheckStartRoutineOwnership(mode);
+  CheckSuspendedTaskExit();
   for (unsigned cycle = 0; cycle != 3; ++cycle) {
     destroyed = 0;
     body_returned = false;

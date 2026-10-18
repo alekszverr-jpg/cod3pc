@@ -1,5 +1,14 @@
 # Состояние проекта
 
+2026-10-18: ThreadStartData правка принята: Island загружена, четыре drain
+успешны, reaped=19 pending=0 в native-20261018-094956-224.log. Следующий
+этап — script TLS: добавлены фактические счётчики контекстов/fibers и лог их
+очистки после native exit. Probe с настоящим приостановленным Cod3FiberTask
+подтвердил 1 → 0; 16 tests, strict codegen и изменённые app objects прошли.
+Full native build/install также прошёл. Открыт один saint_lo_script_tls_01
+(PID 4968), лог native-20261018-153758-546.log подтверждает original entry.
+Игровая приёмка новой диагностики ещё нужна; same-window reset не включён.
+
 2026-10-18: переход saint_lo_exit_refs_01 принят: Island загрузилась, все
 четыре drain-барьера завершены, COD3_TITLE_EXIT_REFS reaped=19 pending=0
 в native-20261018-093413-667.log. Следующий probe воспроизвёл отдельную утечку

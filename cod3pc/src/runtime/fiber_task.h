@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 
 // A host stack retained across a cooperative yield. Each task stays on its
 // creating OS thread; PPC state and guest memory remain the caller's responsibility.
@@ -12,6 +13,7 @@ class Cod3FiberTask {
   bool Resume();
   void Suspend();
   bool Finished() const { return finished_; }
+  static std::size_t LiveCount();
  private:
   static void __stdcall Entry(void* argument);
   void* fiber_ = nullptr;

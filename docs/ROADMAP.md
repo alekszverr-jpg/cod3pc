@@ -1,5 +1,11 @@
 # План разработки нативного порта Call of Duty 3
 
+Уточнение 2026-10-18: ThreadStartData ownership принят настоящим переходом
+Saint-Lo → Island. Следующий критерий — нулевые фактические счётчики игровых
+script contexts и host fibers после native exit. Отдельный Cod3FiberTask TLS
+probe проходит; новая игровая диагностика подготовлена. Затем — module/Runtime
+teardown и сохранение окна; бесшовный переход ещё не реализован.
+
 Уточнение 2026-10-18: self-reference retirement принят в настоящем переходе
 Saint-Lo → Island: reaped=19 pending=0, все drain-барьеры прошли. Следующая
 воспроизведённая утечка — ThreadStartData; TLS-правка прошла отдельный native

@@ -1,6 +1,7 @@
 #include "fiber_task.h"
 #include <Windows.h>
 #include <array>
+#include <atomic>
 #include <rex/hook.h>
 #include <rex/logging.h>
 #include <memory>
@@ -15,8 +16,11 @@ REX_EXTERN(__imp__sub_824A5D70);
 REX_EXTERN(sub_823C0B98);
 
 namespace {
+std::atomic<std::size_t> live_scripts{0};
 struct Invocation { PPCContext* engine; uint8_t* base; uint32_t key; };
 struct Script {
+  Script() { ++live_scripts; }
+  ~Script() { --live_scripts; }
   PPCContext context{};
   PPCContext yield_context{};
   uint8_t* base = nullptr;
@@ -29,7 +33,19 @@ struct Script {
 };
 thread_local Invocation* invocation = nullptr;
 thread_local Script* active_script = nullptr;
-thread_local std::unordered_map<uint32_t, std::unique_ptr<Script>> scripts;
+struct ScriptStore {
+  std::unordered_map<uint32_t, std::unique_ptr<Script>> entries;
+  ~ScriptStore() {
+    // Teardown must happen on the scheduler's parent fiber. Deleting a selected
+    // script fiber would terminate its native owner during TLS destruction.
+    if (active_script) REX_FATAL("Script TLS retired on active script fiber: {:08X}", active_script->key);
+    const auto retained = entries.size();
+    entries.clear(); // Host fibers only; do not read freed guest stack/memory.
+    REXCPU_INFO("SCRIPT_TLS_RETIRED native={} retained={} contexts_remaining={} fibers_remaining={}",
+        GetCurrentThreadId(), retained, live_scripts.load(), Cod3FiberTask::LiveCount());
+  }
+};
+thread_local ScriptStore scripts;
 
 uint32_t Load32(uint8_t* base, uint32_t address) {
   uint32_t value;
@@ -57,6 +73,8 @@ void PrepareYield(PPCContext& ctx, uint8_t* base, PPCFunc* original) {
 }
 }
 
+std::size_t Cod3ScriptContextCount() { return live_scripts.load(std::memory_order_acquire); }
+
 REX_HOOK_RAW(sub_824A6150) {
   Invocation call{&ctx, base, ctx.r3.u32};
   auto* previous = invocation;
@@ -69,7 +87,7 @@ REX_HOOK_RAW(sub_824A6150) {
 bool Cod3BeginScript() {
   if (!invocation) REX_FATAL("Script begin without engine invocation");
   auto& ctx = *invocation->engine;
-  auto& entry = scripts[invocation->key];
+  auto& entry = scripts.entries[invocation->key];
   if (entry && !entry->task->Finished())
     REX_FATAL("Script began twice: key={:08X} old_object={:08X} new_object={:08X} initial_flags={:08X} flags={:08X} resumes={} suspended_lr={:08X}",
         invocation->key, entry->object, Load32(invocation->base, invocation->key + 12),
@@ -91,8 +109,8 @@ bool Cod3BeginScript() {
 
 bool Cod3ResumeScript() {
   if (!invocation) REX_FATAL("Script resume without engine invocation");
-  auto found = scripts.find(invocation->key);
-  if (found == scripts.end()) REX_FATAL("Script continuation absent: {:08X}", invocation->key);
+  auto found = scripts.entries.find(invocation->key);
+  if (found == scripts.entries.end()) REX_FATAL("Script continuation absent: {:08X}", invocation->key);
   auto& script = *found->second;
   auto& ctx = *invocation->engine;
   // The original code just copied the saved guest stack back. Its continuation
@@ -125,7 +143,7 @@ REX_HOOK_RAW(sub_824A5D70) {
   if (active_script && active_script->key == key)
     REX_FATAL("Script released while its host fiber is active: {:08X}", key);
   __imp__sub_824A5D70(ctx, base);
-  if (scripts.erase(key)) REXCPU_INFO("SCRIPT_RELEASE key={:08X}", key);
+  if (scripts.entries.erase(key)) REXCPU_INFO("SCRIPT_RELEASE key={:08X}", key);
 }
 
 // The level's assembly wrapper resumes at its caller, bypassing its neighbour.

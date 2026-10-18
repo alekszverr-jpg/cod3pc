@@ -118,5 +118,37 @@ the rebuilt corrected GPU plugin is
 679B47BB26B246AD1C5CC687BBF0AB5B8E698B64B5DCFA3186538512C5A285DF.
 The external process inventory found no cod3pc open before installation, so
 no gameplay was interrupted. Restored isolated saint_lo_start_data_01 from
-saint_lo_final and opened one normal-menu PID 39792. Real campaign acceptance
-of this additional patch remains pending.
+saint_lo_final and opened one normal-menu PID 39792. The user confirmed Island
+loaded. Parent native-20261018-094956-224.log records four complete drains,
+reaped=19 pending=0 at 09:56:33, then the 664-byte handoff. Successor log
+records Island entry result=1/LOAD_RESULT=0 at 09:57:06. A later original
+return-to-title also drains successfully (reaped=18 pending=0); the final
+menu window closes normally at 09:57:48. No seamless reset is enabled yet.
+
+## Script TLS/fiber ownership diagnostic
+
+ScriptStore now owns the same per-thread map previously held directly in TLS.
+Its destructor clears retained host tasks on the owner scheduler thread and
+logs SCRIPT_TLS_RETIRED. It does not inspect guest memory or resume scripts.
+TLS teardown with an active script is a visible failure rather than deleting
+the selected fiber recursively. Script-context and actual Cod3FiberTask counts
+are process-wide atomics, never reset to manufacture a zero result.
+
+After native guest/consumer drains, the app logs COD3_TITLE_SCRIPT_DRAIN with
+remaining contexts/fibers and complete status. Nonzero counts trigger a private
+consumer dump; they do not authorize freeing old guest memory. The existing
+interprocess handoff is retained during this diagnostic.
+
+The real SDK probe now creates a TLS-owned actual Cod3FiberTask, suspends it,
+checks live count=1 while its native owner waits, then calls raw native Exit
+from the parent scheduler. After the real native handle signals, count=0.
+All 16 tests pass in logs/script-tls-all-tests.log, with SCRIPT_TLS_PROBE in
+Testing/Temporary/LastTest.log. Strict codegen reports 396 unchanged files;
+the three changed application objects compile in logs/script-tls-app-objects.log.
+This covers suspended-task TLS retirement, not arbitrary C++ locals stranded
+inside a discarded fiber stack. Full native build/install then passed in
+logs/script-tls-full-build.log; runtime/GPU DLL hashes remain 1404DBEE/679B47BB
+(full hashes above). External inventory confirmed no game open before install.
+Opened one normal-menu PID 4968 with fresh saint_lo_script_tls_01 restored
+from saint_lo_final; log native-20261018-153758-546.log confirms original entry
+82344D00. Game counters still need runtime acceptance.

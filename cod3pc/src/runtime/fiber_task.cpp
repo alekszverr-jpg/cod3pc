@@ -1,13 +1,21 @@
 #include "fiber_task.h"
 #include <Windows.h>
+#include <atomic>
 #include <stdexcept>
+
+namespace { std::atomic<std::size_t> live_tasks{0}; }
+std::size_t Cod3FiberTask::LiveCount() { return live_tasks.load(std::memory_order_acquire); }
 
 Cod3FiberTask::Cod3FiberTask(Body body, void* argument)
     : body_(body), argument_(argument), thread_(GetCurrentThreadId()) {
   fiber_ = CreateFiberEx(64 * 1024, 4 * 1024 * 1024, FIBER_FLAG_FLOAT_SWITCH, Entry, this);
   if (!fiber_) throw std::runtime_error("CreateFiberEx failed for script task");
+  ++live_tasks;
 }
-Cod3FiberTask::~Cod3FiberTask() { if (fiber_) DeleteFiber(fiber_); }
+Cod3FiberTask::~Cod3FiberTask() {
+  if (fiber_) DeleteFiber(fiber_);
+  --live_tasks;
+}
 bool Cod3FiberTask::Resume() {
   if (GetCurrentThreadId() != thread_) throw std::runtime_error("Script fiber changed OS thread");
   if (finished_) return true;

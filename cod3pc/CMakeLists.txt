@@ -67,7 +67,7 @@ endif()
 include(CTest)
 if(BUILD_TESTING)
     # Explicit lifecycle diagnostic, separate from the user's game executable.
-    add_executable(cod3_runtime_ownership_probe EXCLUDE_FROM_ALL ../tests/runtime_ownership_probe.cpp)
+    add_executable(cod3_runtime_ownership_probe EXCLUDE_FROM_ALL ../tests/runtime_ownership_probe.cpp src/runtime/fiber_task.cpp)
     target_link_libraries(cod3_runtime_ownership_probe PRIVATE rex::runtime)
     rexglue_apply_target_settings(cod3_runtime_ownership_probe)
     set_target_properties(cod3_runtime_ownership_probe PROPERTIES

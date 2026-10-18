@@ -1,5 +1,21 @@
 # Campaign transition without application restart
 
+## Callback ownership accepted; script TLS audit, 2026-10-18
+
+User confirmed Island from saint_lo_start_data_01. Parent log
+native-20261018-094956-224.log records all four drains complete and
+reaped=19 pending=0 at 09:56:33. Successor Island entry returns 1 and loader
+returns 0 at 09:57:06. Later return-to-title also drains (18/0), then the
+menu closes normally. This accepts the ThreadStartData correction.
+
+Next diagnostic counts actual live Script and Cod3FiberTask owners and logs
+TLS map retirement without touching guest memory. A real suspended-task TLS
+probe passes (1 live before raw native Exit, 0 after actual native exit).
+All 16 tests, strict codegen and full native build/install pass. One normal-menu
+PID 4968 is open with isolated saint_lo_script_tls_01; original entry is logged
+in native-20261018-153758-546.log. Game acceptance of COD3_TITLE_SCRIPT_DRAIN
+still remains; same-process reset is not enabled.
+
 ## Exit references accepted; callback capture leak reproduced, 2026-10-18
 
 The user confirmed Island loaded from saint_lo_exit_refs_01. Parent log

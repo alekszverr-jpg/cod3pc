@@ -12,6 +12,7 @@
 #include <rex/ui/keybinds.h>
 #include <rex/ui/imgui_drawer.h>
 #include <rex/ui/immediate_drawer.h>
+#include "runtime/fiber_task.h"
 
 void InstallCod3CrashTrace();
 void Cod3TraceLoaderState();
@@ -26,6 +27,7 @@ REXCVAR_DECLARE(bool, cod3_title_dispatch_drain);
 void DumpCod3TitleConsumers();
 bool RequestCod3MovieSkip();
 void ResetCod3MovieSkip();
+std::size_t Cod3ScriptContextCount();
 
 class Cod3pcApp : public rex::ReXApp {
  public:
@@ -86,6 +88,11 @@ class Cod3pcApp : public rex::ReXApp {
                 const auto pending = runtime()->kernel_state()->PendingExitedThreadObjects();
                 REXLOG_INFO("COD3_TITLE_EXIT_REFS reaped={} pending={}", reaped, pending);
                 if (pending) DumpCod3TitleConsumers();
+                const auto contexts = Cod3ScriptContextCount();
+                const auto fibers = Cod3FiberTask::LiveCount();
+                REXLOG_INFO("COD3_TITLE_SCRIPT_DRAIN contexts={} fibers={} complete={}",
+                    contexts, fibers, contexts == 0 && fibers == 0);
+                if (contexts || fibers) DumpCod3TitleConsumers();
               }
             } else {
               REXLOG_ERROR("COD3_TITLE_DISPATCH_DRAIN_SKIPPED reason=gpu_not_drained");
