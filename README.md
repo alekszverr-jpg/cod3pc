@@ -21,8 +21,9 @@ The third mission's `nightd.dll` also loads with player control in manual testin
 full third-mission completion remains unverified.
 Briefings can be skipped with Space or Enter after the original resource wait.
 An opt-in Saint-Lo → Island transition has been verified in the same process and
-window, with working input and audio. The standard launcher still uses native
-process relaunch while repeated transitions and menu lifecycle are tested.
+window, with working input and audio; returning to the menu and Continue also
+work in that instance. The standard launcher still uses native process relaunch
+while further mission transitions and fullscreen/settings are tested.
 Remaining work includes campaign modules, spatial audio, and broader stability
 testing. Multiplayer is outside the initial scope.
 

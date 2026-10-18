@@ -79,3 +79,11 @@ Island entry returns 1 and loader returns 0 at 22:32:11; user confirms level,
 control and sound. No child-process handoff is queued. This verifies one real
 Saint-Lo → Island transition; repeat/menu/fullscreen regression is still needed
 before changing the default mode. The current game remains open for that check.
+
+The user then confirmed return to menu and Continue in the same window. Current
+log at 22:35:11.376 records generation 3 with the same PID 51848/HWND 0x1609da;
+the second old-Runtime teardown passes and Island entry/loader succeed again at
+22:35:41.347. This accepts one repeated menu/Continue cycle. The first transition
+records have rotated into native-20261018-222816-941.1.log; selected evidence is
+also preserved privately in reports/title-inprocess/accepted-transition-evidence.txt.
+Next acceptance is Island → Night Drop in this process, plus fullscreen/settings.

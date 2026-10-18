@@ -1,5 +1,12 @@
 # Состояние проекта
 
+2026-10-18: повторный цикл меню → Continue принят в том же окне: generation=3
+с прежними PID 51848/HWND 0x1609da в 22:35:11, повторный teardown чистый,
+Island entry/loader успешны в 22:35:41. Пользователь подтвердил меню и Continue.
+Таким образом, в одном процессе прошли уже 3 поколения Runtime. Следующая
+приёмка — Island → Night Drop и fullscreen/settings; default пока не меняется.
+Лог native-20261018-222816-941.log, ранние записи ротированы в .1.log.
+
 2026-10-18: первый Saint-Lo → Island В ОДНОМ ПРОЦЕССЕ И ОКНЕ принят.
 Лог native-20261018-222816-941.log: generation 1/2 с PID 51848 и HWND 0x1609da,
 чистые native/script/input drains, globals cleared, DLLs 1 → 0, восстановлены

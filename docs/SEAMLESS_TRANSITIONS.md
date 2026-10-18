@@ -1,5 +1,15 @@
 # Campaign transition without application restart
 
+## Menu/Continue cycle accepted, 2026-10-18
+
+User confirms menu and Continue in the same window. Current
+native-20261018-222816-941.log records clean second teardown, generation 3 in
+PID 51848/HWND 0x1609da at 22:35:11, then successful Island entry/loader at
+22:35:41. Earlier generation 1/2 evidence is now in the rotated .1.log; selected
+records are preserved privately in reports/title-inprocess/accepted-transition-evidence.txt.
+This verifies two Runtime restarts within one process. Island → Night Drop and
+fullscreen/settings acceptance remain before promoting the opt-in mode.
+
 ## First real same-process transition accepted, 2026-10-18
 
 User confirms Island loaded with working control and sound. In
