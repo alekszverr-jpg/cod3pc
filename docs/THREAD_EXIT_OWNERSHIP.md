@@ -151,4 +151,7 @@ logs/script-tls-full-build.log; runtime/GPU DLL hashes remain 1404DBEE/679B47BB
 (full hashes above). External inventory confirmed no game open before install.
 Opened one normal-menu PID 4968 with fresh saint_lo_script_tls_01 restored
 from saint_lo_final; log native-20261018-153758-546.log confirms original entry
-82344D00. Game counters still need runtime acceptance.
+82344D00. The user confirmed Island. Parent log at 16:08:53 records
+COD3_TITLE_SCRIPT_DRAIN contexts=0 fibers=0 complete=true and exit references
+reaped=19 pending=0 after all native barriers. This accepts script TLS ownership
+on that transition. The next experiment is documented in TITLE_RUNTIME_TEARDOWN.md.

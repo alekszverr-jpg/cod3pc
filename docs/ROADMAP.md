@@ -1,5 +1,12 @@
 # План разработки нативного порта Call of Duty 3
 
+Уточнение 2026-10-18: script contexts/fibers обнуляются на настоящем переходе.
+Следующий критерий — положительное уничтожение старого Runtime и выгрузка
+campaign DLLs до межпроцессного handoff. Эксперимент TitleRuntimeTeardown
+установлен после tests/strict/native build; игровой результат ожидается.
+После него — пересоздание Runtime/presentation в том же окне с 664 байтами
+исходного launch data. См. TITLE_RUNTIME_TEARDOWN.md.
+
 Уточнение 2026-10-18: ThreadStartData ownership принят настоящим переходом
 Saint-Lo → Island. Следующий критерий — нулевые фактические счётчики игровых
 script contexts и host fibers после native exit. Отдельный Cod3FiberTask TLS

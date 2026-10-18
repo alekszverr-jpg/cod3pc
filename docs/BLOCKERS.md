@@ -2,6 +2,14 @@
 
 ## Текущий приоритет: бесшовный переход в одном процессе
 
+2026-10-18: нулевые script contexts/fibers подтверждены настоящим переходом
+Saint-Lo → Island. Активная проверка — уничтожение старого Runtime после
+освобождения watcher-ссылки главного потока и всех native barriers. Opt-in
+TitleRuntimeTeardown собран; 16 tests/strict/native build прошли. В игре нужно
+подтвердить globals_cleared и нулевое число старых campaign DLLs, а не только
+загрузку Island. Проверка открыта в saint_lo_runtime_teardown_01 (PID 39580).
+Далее — новый Runtime и presenter в том же окне. См. TITLE_RUNTIME_TEARDOWN.md.
+
 2026-10-18: ThreadStartData принят на Saint-Lo → Island, все четыре drain
 успешны, reaped=19 pending=0. Активная проверка — script TLS/fiber ownership:
 изолированный реальный Cod3FiberTask освобождается при native exit, но игровые

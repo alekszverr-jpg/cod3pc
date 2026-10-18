@@ -13,6 +13,8 @@
 #include <rex/ui/imgui_drawer.h>
 #include <rex/ui/immediate_drawer.h>
 #include "runtime/fiber_task.h"
+#include <Windows.h>
+#include <array>
 
 void InstallCod3CrashTrace();
 void Cod3TraceLoaderState();
@@ -24,6 +26,7 @@ bool Cod3TitleAudioReady();
 bool DrainCod3TitleGpu(rex::system::IGraphicsSystem* graphics);
 REXCVAR_DECLARE(bool, cod3_title_gpu_drain);
 REXCVAR_DECLARE(bool, cod3_title_dispatch_drain);
+REXCVAR_DECLARE(bool, cod3_title_runtime_teardown);
 void DumpCod3TitleConsumers();
 bool RequestCod3MovieSkip();
 void ResetCod3MovieSkip();
@@ -52,6 +55,7 @@ class Cod3pcApp : public rex::ReXApp {
   }
 
   void OnPostSetup() override {
+    title_consumers_ready_ = false;
     ResetCod3MovieSkip();
     InstallCod3CrashTrace();
     RestoreCod3TitleHandoff();
@@ -93,6 +97,7 @@ class Cod3pcApp : public rex::ReXApp {
                 REXLOG_INFO("COD3_TITLE_SCRIPT_DRAIN contexts={} fibers={} complete={}",
                     contexts, fibers, contexts == 0 && fibers == 0);
                 if (contexts || fibers) DumpCod3TitleConsumers();
+                title_consumers_ready_ = pending == 0 && contexts == 0 && fibers == 0;
               }
             } else {
               REXLOG_ERROR("COD3_TITLE_DISPATCH_DRAIN_SKIPPED reason=gpu_not_drained");
@@ -105,6 +110,26 @@ class Cod3pcApp : public rex::ReXApp {
       }
     }
     RelaunchCod3TitleIfRequested();
+  }
+
+  void OnGuestThreadReleased() override {
+    if (!REXCVAR_GET(cod3_title_runtime_teardown)) return;
+    if (!title_consumers_ready_) {
+      REXLOG_ERROR("COD3_TITLE_RUNTIME_DRAIN complete=false reason=consumers_not_drained");
+      return;
+    }
+    // The watcher has released its XThread reference. Only now may object-table
+    // and guest memory teardown run. The current handoff still waits for this
+    // process to exit; this diagnostic does not start a new Runtime in it.
+    const std::array dlls{L"cod3pc_saint_lo.dll", L"cod3pc_island.dll", L"cod3pc_nightd.dll"};
+    unsigned loaded_before = 0;
+    for (const auto* name : dlls) loaded_before += GetModuleHandleW(name) != nullptr;
+    const bool released = ShutdownTitleRuntime();
+    unsigned loaded_after = 0;
+    for (const auto* name : dlls) loaded_after += GetModuleHandleW(name) != nullptr;
+    const bool complete = released && loaded_after == 0;
+    REXLOG_INFO("COD3_TITLE_RUNTIME_DRAIN globals_cleared={} campaign_dlls_before={} campaign_dlls_after={} complete={}",
+        released, loaded_before, loaded_after, complete);
   }
 
   void OnKeyDown(rex::ui::KeyEvent& event) override {
@@ -131,4 +156,6 @@ class Cod3pcApp : public rex::ReXApp {
   // CreateAchievementNotificationDialog() override;
   // void OnShutdown() override {}
   // void OnConfigurePaths(rex::PathConfig& paths) override {}
+ private:
+  bool title_consumers_ready_ = false;
 };

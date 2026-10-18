@@ -4,7 +4,7 @@ param([int]$Seconds = 30, [switch]$Headless, [switch]$Interactive,
     [switch]$FullGpuReadback, [switch]$GrassShaderTest, [switch]$StockGpu,
     [switch]$ShaderDiagnostics, [switch]$CooperativeWorkerExit, [switch]$TransitionDump,
     [switch]$TitleThreadDrain, [switch]$TitleAudioDrain, [switch]$TitleGpuDrain,
-    [switch]$TitleDispatchDrain,
+    [switch]$TitleDispatchDrain, [switch]$TitleRuntimeTeardown,
     [ValidateRange(0,100)][int]$DofStrength = 100,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugMission,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugProfile,
@@ -70,6 +70,10 @@ if ($TitleDispatchDrain) {
     $arguments += '--cod3_title_dispatch_drain'
 }
 if ($TransitionDump) { $arguments += '--cod3_transition_dump' }
+if ($TitleRuntimeTeardown) {
+    if (!$TitleDispatchDrain) { throw 'TitleRuntimeTeardown requires TitleDispatchDrain.' }
+    $arguments += '--cod3_title_runtime_teardown'
+}
 if ($Interactive) { $arguments += @('--mnk_mode','true') }
 if ($FirstMission) { $arguments += @('--cl','"+spmap saint_lo"') }
 if ($DebugMission) { $arguments += @('--cl', ('"+devmap {0}"' -f $taskSelectedLevel[0].map)) }

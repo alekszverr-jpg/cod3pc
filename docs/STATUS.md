@@ -1,5 +1,13 @@
 # Состояние проекта
 
+2026-10-18: script TLS принят: contexts=0 fibers=0 complete=true,
+reaped=19 pending=0 после всех native drains в native-20261018-153758-546.log;
+Island загружена. Подготовлен opt-in TitleRuntimeTeardown: watcher сначала
+отпускает main XThread, затем UI освобождает overlays и старый Runtime при
+сохранённом окне. 16 tests, strict codegen/full build прошли. Открыт один
+saint_lo_runtime_teardown_01 (PID 39580); результат ещё нужен. Переход пока
+межпроцессный. См. TITLE_RUNTIME_TEARDOWN.md.
+
 2026-10-18: ThreadStartData правка принята: Island загружена, четыре drain
 успешны, reaped=19 pending=0 в native-20261018-094956-224.log. Следующий
 этап — script TLS: добавлены фактические счётчики контекстов/fibers и лог их

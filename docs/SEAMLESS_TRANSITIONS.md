@@ -1,5 +1,16 @@
 # Campaign transition without application restart
 
+## Script TLS accepted; old Runtime teardown prepared, 2026-10-18
+
+User confirmed Island. Parent native-20261018-153758-546.log records four drains
+complete, reaped=19 pending=0 and SCRIPT_DRAIN contexts=0 fibers=0 at 16:08:53.
+The next opt-in experiment releases the watcher's main-thread reference before
+UI-thread teardown of Runtime-bound overlays and Runtime, retaining the window.
+It checks cleared globals and actual campaign DLL handles after destruction.
+See TITLE_RUNTIME_TEARDOWN.md. All 16 tests, strict codegen/native build pass;
+one isolated saint_lo_runtime_teardown_01 is open (PID 39580). Real teardown
+acceptance remains pending; the successor still uses the existing process handoff.
+
 ## Callback ownership accepted; script TLS audit, 2026-10-18
 
 User confirmed Island from saint_lo_start_data_01. Parent log
