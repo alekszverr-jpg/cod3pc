@@ -66,5 +66,11 @@ After saving diagnostics and passing the regression, stopped only the matching
 hung isolated PID 38720, verifying its name/profile before termination. It could
 not service window events. Main campaign userdata was not touched. Restored
 fresh saint_lo_inprocess_input_01 and opened one normal-menu PID 51848 with
-same-process flags; log native-20261018-222816-941.log. Actual Island rendering,
-control and sound in that process remain pending.
+same-process flags; log native-20261018-222816-941.log. User confirmed Island
+loaded with working control and sound. At 22:31:33.144 SDL_INPUT_RETIRED records
+event_watch_removed=true pending_pump=false. All old-title drains complete,
+Runtime globals clear and the old campaign DLL unloads. Generation 2 retains
+PID 51848 and HWND 0x1609da; Island entry returns 1/loader returns 0 at 22:32:11.
+No child-process handoff is queued, and neither old cleanup error recurs.
+This accepts the first real same-process transition after the input correction.
+Repeated transitions and menu/Continue/fullscreen behavior remain unverified.

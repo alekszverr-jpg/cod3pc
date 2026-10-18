@@ -2,6 +2,12 @@
 
 ## Текущий приоритет: бесшовный переход в одном процессе
 
+2026-10-18: первый same-process Saint-Lo → Island принят: PID/HWND прежние,
+DLL/Runtime чисто освобождены, карта/ввод/звук работают. Блокер первой загрузки
+снят. До default-режима нужны повторные циклы меню/Continue, переход следующей
+миссии и fullscreen/settings. Текущий PID 51848 оставлен для ручной проверки
+возврата в меню и продолжения. См. INPROCESS_RESTART.md.
+
 2026-10-18: same PID/HWND и original startup второго Runtime подтверждены,
 но первый тест завис в stale SDL input watch. Изолированный настоящий драйвер
 воспроизводит use-after-free (PAGE_NOACCESS); detach исправлен, 16 tests и

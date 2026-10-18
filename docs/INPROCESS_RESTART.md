@@ -72,4 +72,10 @@ No claim of seamless gameplay is made from build success or prior process handof
 First test reached generation 2 in the same PID/HWND and original startup, but
 the user reported black screen/hang. The dump identifies a retained SDL input
 watch after old driver destruction. Correction, regression and the next manual
-test are recorded in INPUT_RETIREMENT.md; Island acceptance is still pending.
+test are recorded in INPUT_RETIREMENT.md. The corrected test is accepted:
+native-20261018-222816-941.log shows generation 1 and 2 both in PID 51848,
+HWND 0x1609da, clean old Runtime/DLL teardown and original 664-byte restore.
+Island entry returns 1 and loader returns 0 at 22:32:11; user confirms level,
+control and sound. No child-process handoff is queued. This verifies one real
+Saint-Lo → Island transition; repeat/menu/fullscreen regression is still needed
+before changing the default mode. The current game remains open for that check.

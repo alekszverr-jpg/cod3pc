@@ -20,8 +20,9 @@ ReXGlue runtime and Xenos GPU backend; it does not launch an emulator process.
 The third mission's `nightd.dll` also loads with player control in manual testing;
 full third-mission completion remains unverified.
 Briefings can be skipped with Space or Enter after the original resource wait.
-Campaign transitions currently relaunch the native process; preserving the same
-window and Runtime lifecycle is still in development.
+An opt-in Saint-Lo → Island transition has been verified in the same process and
+window, with working input and audio. The standard launcher still uses native
+process relaunch while repeated transitions and menu lifecycle are tested.
 Remaining work includes campaign modules, spatial audio, and broader stability
 testing. Multiplayer is outside the initial scope.
 

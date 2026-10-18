@@ -1,5 +1,17 @@
 # Campaign transition without application restart
 
+## First real same-process transition accepted, 2026-10-18
+
+User confirms Island loaded with working control and sound. In
+native-20261018-222816-941.log, generations 1 and 2 share PID 51848/HWND 0x1609da.
+At 22:31:33 input removes its watch with no queued pump; all consumer/script
+barriers complete, globals clear, the old campaign DLL unloads, and 664 original
+launch bytes are restored to the fresh Runtime. Island entry returns 1 and
+loader returns 0 at 22:32:11. No successor process is queued; previous cleanup
+errors are absent. This accepts one Saint-Lo → Island transition in the retained
+window/process. Mode remains opt-in pending menu/Continue, repeated mission
+transitions and fullscreen/settings checks. Current Island is left running.
+
 ## Generation 2 reached; SDL watch hang corrected, 2026-10-18
 
 First same-process test keeps PID 38720/HWND 0x130b6a, creates generation 2,

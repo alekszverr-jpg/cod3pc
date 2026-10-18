@@ -1,5 +1,13 @@
 # Состояние проекта
 
+2026-10-18: первый Saint-Lo → Island В ОДНОМ ПРОЦЕССЕ И ОКНЕ принят.
+Лог native-20261018-222816-941.log: generation 1/2 с PID 51848 и HWND 0x1609da,
+чистые native/script/input drains, globals cleared, DLLs 1 → 0, восстановлены
+664 байта; Island entry result=1/LOAD_RESULT=0 в 22:32:11. Пользователь подтвердил
+загрузку, управление и звук. Child process не запускался. Режим пока opt-in;
+следующая приёмка — меню → Continue и повторный restart в том же экземпляре,
+затем fullscreen/settings. Игра оставлена открытой. См. INPROCESS_RESTART.md.
+
 2026-10-18: первый same-process тест достиг generation=2 при прежних PID/HWND
 и повторного original entry, но завис на SDL input. Дамп выявил watch со старым
 userdata: SDL-драйвер не очищался при сохранённом окне. Добавлен UI detach с
