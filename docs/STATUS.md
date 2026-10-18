@@ -1,5 +1,13 @@
 # Состояние проекта
 
+2026-10-18: чистый teardown принят: Saint-Lo сняла регистрацию 6073 функций,
+DLLs 1 → 0, globals cleared; прежних ошибок heap/module sweep нет в
+native-20261018-214705-386.log, Island загружена. Подготовлен opt-in
+TitleInProcessRestart: сохранение HWND/PID, новый Runtime/presenter/input и
+оригинальные 664 байта launch data без child process. 16 tests, strict codegen
+и изменённые app objects прошли. Island PID 23356 ещё открыта, установка
+и первая игровая проверка пока ожидаются. См. INPROCESS_RESTART.md.
+
 2026-10-18: старый Runtime действительно уничтожился при живом окне,
 globals_cleared=true, campaign_dlls 1 → 0; Island загрузилась. Но в teardown
 найдены ошибки module sweep и heap Release. Реальный XEX probe доказал:

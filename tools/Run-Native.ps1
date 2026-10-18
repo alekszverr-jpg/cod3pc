@@ -4,7 +4,7 @@ param([int]$Seconds = 30, [switch]$Headless, [switch]$Interactive,
     [switch]$FullGpuReadback, [switch]$GrassShaderTest, [switch]$StockGpu,
     [switch]$ShaderDiagnostics, [switch]$CooperativeWorkerExit, [switch]$TransitionDump,
     [switch]$TitleThreadDrain, [switch]$TitleAudioDrain, [switch]$TitleGpuDrain,
-    [switch]$TitleDispatchDrain, [switch]$TitleRuntimeTeardown,
+    [switch]$TitleDispatchDrain, [switch]$TitleRuntimeTeardown, [switch]$TitleInProcessRestart,
     [ValidateRange(0,100)][int]$DofStrength = 100,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugMission,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugProfile,
@@ -73,6 +73,10 @@ if ($TransitionDump) { $arguments += '--cod3_transition_dump' }
 if ($TitleRuntimeTeardown) {
     if (!$TitleDispatchDrain) { throw 'TitleRuntimeTeardown requires TitleDispatchDrain.' }
     $arguments += '--cod3_title_runtime_teardown'
+}
+if ($TitleInProcessRestart) {
+    if (!$TitleRuntimeTeardown) { throw 'TitleInProcessRestart requires TitleRuntimeTeardown.' }
+    $arguments += '--cod3_title_inprocess_restart'
 }
 if ($Interactive) { $arguments += @('--mnk_mode','true') }
 if ($FirstMission) { $arguments += @('--cl','"+spmap saint_lo"') }

@@ -1,5 +1,17 @@
 # Campaign transition without application restart
 
+## Clean teardown accepted; same-window reconstruction prepared, 2026-10-18
+
+User confirmed Island from saint_lo_xex_ownership_01. At 21:51:32 parent
+native-20261018-214705-386.log unregisters Saint-Lo's 6073 functions, clears
+Runtime globals and unloads its DLL; both previous cleanup errors are absent.
+The next opt-in path captures original launch bytes in memory, releases the
+old watcher, rebuilds presentation/Runtime on UI and launches original startup
+with the same window. No child process is queued in this mode.
+All 16 tests, strict codegen and changed app objects compile. Installation
+awaits closing the current Island; first same-process acceptance remains pending.
+See INPROCESS_RESTART.md for lifecycle ordering and PID/HWND acceptance criteria.
+
 ## Runtime destruction observed; cleanup defects reproduced, 2026-10-18
 
 User confirmed Island. Parent native-20261018-161702-857.log records actual

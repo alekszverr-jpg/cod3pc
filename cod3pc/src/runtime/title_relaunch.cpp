@@ -15,6 +15,17 @@ std::vector<uint8_t> pending_launch_data;
 }
 void ResetCod3WorkerExit();
 
+bool CaptureCod3InProcessHandoff() {
+  const auto xam = rex::system::kernel_state()->GetKernelModule<rex::kernel::xam::XamModule>("xam.xex");
+  if (!xam) return false;
+  const auto& data = xam->loader_data();
+  if (!cod3::IsCampaignRelaunch(data.launch_path, data.launch_flags,
+      data.launch_data_present, data.launch_data.size())) return false;
+  pending_launch_data = data.launch_data;
+  REXLOG_INFO("COD3_INPROCESS_HANDOFF_CAPTURED bytes={}", pending_launch_data.size());
+  return true;
+}
+
 void PrepareCod3TitleHandoff() {
   try {
     // Called before constructing ReXApp: no game window/runtime exists while

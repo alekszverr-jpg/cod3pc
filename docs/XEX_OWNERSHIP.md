@@ -70,5 +70,7 @@ application runtime SHA-256 match
 No cod3pc was open in the external inventory before installation/launch.
 Restored isolated saint_lo_xex_ownership_01 from saint_lo_final and opened one
 normal-menu PID 2736, log native-20261018-214705-386.log. Real transition is
-pending: absence of both original cleanup errors must be checked in that log.
-Successful probe loading is not a claim of gameplay or same-process transition.
+accepted: user confirmed Island, the log unregisters Saint-Lo's 6073 functions,
+returns from Runtime destruction with globals cleared/DLL count 1 to 0, and
+contains neither original cleanup error. Same-process restart is the next
+experiment, documented in INPROCESS_RESTART.md; it is not yet gameplay-verified.

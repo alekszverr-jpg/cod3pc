@@ -1,6 +1,6 @@
 --- a/include/rex/rex_app.h
 +++ b/include/rex/rex_app.h
-@@ -165,6 +165,16 @@
+@@ -165,6 +165,19 @@
    /// Called when the main guest thread exits. The runtime is still alive.
    /// Use for cleanup that depends on runtime resources.
    virtual void OnGuestThreadExit(system::XThread* thread) { (void)thread; }
@@ -14,10 +14,13 @@
 +  /// Releases runtime-bound overlays and Runtime on the UI thread, keeping the
 +  /// window. Does not restart the engine or join the calling module watcher.
 +  bool ShutdownTitleRuntime();
++  /// Called by the module watcher only after successful ShutdownTitleRuntime.
++  /// Schedules reconstruction on the UI thread after that watcher has exited.
++  bool RequestTitleRuntimeRestart();
  
    /// Detached overlay mode ("bring your own renderer"). Called once from
    /// SetupPresentation when the SDK has no graphics backend
-@@ -268,6 +278,7 @@
+@@ -268,6 +281,7 @@
    // independently of how the presenter/drawer were obtained. `presenter` may be
    // null (detached mode).
    void SetupOverlays(ui::Presenter* presenter, ui::ImmediateDrawer* drawer);
@@ -25,18 +28,108 @@
  
    // WindowedApp overrides
    bool OnInitialize() override;
+@@ -298,6 +312,7 @@
+   std::unique_ptr<ui::Window> window_;
+   std::thread module_thread_;
+   std::atomic<bool> shutting_down_{false};
++  std::atomic<bool> restart_title_requested_{false};
+   std::unique_ptr<ui::ImmediateDrawer> immediate_drawer_;
+   std::unique_ptr<ui::ImGuiDrawer> imgui_drawer_;
+ 
 --- a/src/ui/rex_app.cpp
 +++ b/src/ui/rex_app.cpp
-@@ -471,6 +471,8 @@
+@@ -333,29 +333,33 @@
+     }
+   }
+ 
+-  // Create window
+-  window_ = rex::ui::Window::Create(app_context(), GetName(), 1280, 720);
++  // Keep the existing HWND, size, fullscreen state and listeners on restart.
+   if (!window_) {
+-    REXLOG_ERROR("Failed to create window");
+-    return false;
+-  }
+-
+-  // Set window title with SDK build stamp
+-  std::string title = std::string(GetName()) + " " + REXGLUE_BUILD_TITLE;
+-  window_->SetTitle(title);
+-
+-  window_->AddListener(this);
+-  window_->AddInputListener(this, 0);
+-
+-  if (REXCVAR_GET(fullscreen)) {
+-    window_->SetFullscreen(true);
+-  }
+-  rex::cvar::RegisterChangeCallback("fullscreen", [this](std::string_view, std::string_view value) {
+-    if (window_) {
+-      window_->SetFullscreen(rex::string::from_string<bool>(value, false));
+-    }
+-  });
+-  window_->Open();
++    // Create window
++    window_ = rex::ui::Window::Create(app_context(), GetName(), 1280, 720);
++    if (!window_) {
++      REXLOG_ERROR("Failed to create window");
++      return false;
++    }
++
++    // Set window title with SDK build stamp
++    std::string title = std::string(GetName()) + " " + REXGLUE_BUILD_TITLE;
++    window_->SetTitle(title);
++
++    window_->AddListener(this);
++    window_->AddInputListener(this, 0);
++
++    if (REXCVAR_GET(fullscreen)) {
++      window_->SetFullscreen(true);
++    }
++    rex::cvar::RegisterChangeCallback("fullscreen", [this](std::string_view, std::string_view value) {
++      if (window_) {
++        window_->SetFullscreen(rex::string::from_string<bool>(value, false));
++      }
++    });
++    window_->Open();
++
++  }
+ 
+   auto* graphics_system = config_.graphics.get();
+   if (graphics_system && graphics_system->presenter()) {
+@@ -471,8 +475,33 @@
      module_thread_ = std::thread([this, main_thread = std::move(main_thread)]() mutable {
        main_thread->Wait(0, 0, 0, nullptr);
        OnGuestThreadExit(main_thread.get());
 +      main_thread.reset();
 +      OnGuestThreadReleased();
        REXLOG_INFO("Execution complete");
-       if (!shutting_down_.load(std::memory_order_acquire)) {
+-      if (!shutting_down_.load(std::memory_order_acquire)) {
++      if (restart_title_requested_.exchange(false, std::memory_order_acq_rel)) {
++        app_context().CallInUIThreadDeferred([this]() {
++          // This callback runs after the watcher has stopped waiting on UI.
++          // Join before replacing its std::thread with the next title watcher.
++          if (module_thread_.joinable()) module_thread_.join();
++          if (shutting_down_.load(std::memory_order_acquire)) return;
++          if (runtime_ || !window_) {
++            REXLOG_ERROR("TITLE_RUNTIME_RESTART rejected: old runtime or missing window");
++            app_context().QuitFromUIThread();
++            return;
++          }
++          const PathConfig paths{game_data_root_, user_data_root_, update_data_root_,
++                                 cache_root_, metadata_root_, config_path_};
++          config_ = RuntimeConfig{};
++          REXLOG_INFO("TITLE_RUNTIME_RESTART begin window={}", window_->GetNativeWindowHandle());
++          if (!SetupPresentation() || !ConstructRuntime(paths)) {
++            REXLOG_ERROR("TITLE_RUNTIME_RESTART failed");
++            app_context().QuitFromUIThread();
++            return;
++          }
++          REXLOG_INFO("TITLE_RUNTIME_RESTART ready window={}", window_->GetNativeWindowHandle());
++          LaunchModule();
++        });
++      } else if (!shutting_down_.load(std::memory_order_acquire)) {
          app_context().CallInUIThread([this]() { app_context().QuitFromUIThread(); });
-@@ -553,10 +555,7 @@
+       }
+     });
+@@ -553,10 +582,7 @@
    OnWindowRestored();
  }
  
@@ -48,10 +141,16 @@
    // Unregister overlay keybinds before destroying dialogs
    rex::ui::UnregisterBind("bind_debug_overlay");
    rex::ui::UnregisterBind("bind_console");
-@@ -595,6 +594,35 @@
+@@ -595,6 +621,41 @@
    if (window_) {
      window_->SetPresenter(nullptr);
    }
++}
++
++bool ReXApp::RequestTitleRuntimeRestart() {
++  if (runtime_ || shutting_down_.load(std::memory_order_acquire)) return false;
++  restart_title_requested_.store(true, std::memory_order_release);
++  return true;
 +}
 +
 +bool ReXApp::ShutdownTitleRuntime() {

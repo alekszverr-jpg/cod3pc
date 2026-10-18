@@ -27,6 +27,8 @@ bool DrainCod3TitleGpu(rex::system::IGraphicsSystem* graphics);
 REXCVAR_DECLARE(bool, cod3_title_gpu_drain);
 REXCVAR_DECLARE(bool, cod3_title_dispatch_drain);
 REXCVAR_DECLARE(bool, cod3_title_runtime_teardown);
+REXCVAR_DECLARE(bool, cod3_title_inprocess_restart);
+bool CaptureCod3InProcessHandoff();
 void DumpCod3TitleConsumers();
 bool RequestCod3MovieSkip();
 void ResetCod3MovieSkip();
@@ -56,6 +58,9 @@ class Cod3pcApp : public rex::ReXApp {
 
   void OnPostSetup() override {
     title_consumers_ready_ = false;
+    inprocess_pending_ = false;
+    REXLOG_INFO("COD3_RUNTIME_GENERATION generation={} pid={} hwnd={}",
+        ++runtime_generation_, GetCurrentProcessId(), window() ? window()->GetNativeWindowHandle() : nullptr);
     ResetCod3MovieSkip();
     InstallCod3CrashTrace();
     RestoreCod3TitleHandoff();
@@ -109,7 +114,14 @@ class Cod3pcApp : public rex::ReXApp {
         REXLOG_ERROR("COD3_TITLE_GPU_DRAIN_SKIPPED reason=guest_audio_not_drained");
       }
     }
-    RelaunchCod3TitleIfRequested();
+    if (REXCVAR_GET(cod3_title_inprocess_restart)) {
+      // Snapshot the original launch bytes while Xam and old memory are alive.
+      // No child process is queued in this opt-in mode, including on failure.
+      inprocess_pending_ = title_consumers_ready_ && CaptureCod3InProcessHandoff();
+      if (!inprocess_pending_) REXLOG_ERROR("COD3_INPROCESS_RESTART_SKIPPED reason=not_ready_or_no_handoff");
+    } else {
+      RelaunchCod3TitleIfRequested();
+    }
   }
 
   void OnGuestThreadReleased() override {
@@ -130,6 +142,10 @@ class Cod3pcApp : public rex::ReXApp {
     const bool complete = released && loaded_after == 0;
     REXLOG_INFO("COD3_TITLE_RUNTIME_DRAIN globals_cleared={} campaign_dlls_before={} campaign_dlls_after={} complete={}",
         released, loaded_before, loaded_after, complete);
+    if (inprocess_pending_) {
+      const bool requested = complete && RequestTitleRuntimeRestart();
+      REXLOG_INFO("COD3_INPROCESS_RESTART_REQUESTED complete={}", requested);
+    }
   }
 
   void OnKeyDown(rex::ui::KeyEvent& event) override {
@@ -158,4 +174,6 @@ class Cod3pcApp : public rex::ReXApp {
   // void OnConfigurePaths(rex::PathConfig& paths) override {}
  private:
   bool title_consumers_ready_ = false;
+  bool inprocess_pending_ = false;
+  unsigned runtime_generation_ = 0;
 };

@@ -1,5 +1,11 @@
 # План разработки нативного порта Call of Duty 3
 
+Уточнение 2026-10-18: clean teardown старого Runtime принят. Следующий
+критерий — Island с новым Runtime при прежних PID/HWND и оригинальном launch
+state. Opt-in код подготовлен; tests/strict/app objects проходят, игровая
+приёмка ещё нужна. Затем повторные переходы, меню, fullscreen, звук и ввод;
+до этого same-process режим не становится default. См. INPROCESS_RESTART.md.
+
 Уточнение 2026-10-18: уничтожение старого Runtime/выгрузка DLL подтверждены,
 но обнаружены ошибки очистки. Перед same-process restart требуется чистая
 приёмка исправлений общей XEX heap и resolved VFS module lookup. Реальный

@@ -19,6 +19,8 @@ REXCVAR_DEFINE_BOOL(cod3_title_dispatch_drain, false, "Debug",
     "Seal deferred kernel work and verify dispatch native exit after GPU drain").debug_only();
 REXCVAR_DEFINE_BOOL(cod3_title_runtime_teardown, false, "Debug",
     "Destroy a fully drained old Runtime before the existing process handoff").debug_only();
+REXCVAR_DEFINE_BOOL(cod3_title_inprocess_restart, false, "Debug",
+    "Rebuild a drained Runtime in the same process and retained window").debug_only();
 namespace { std::atomic<bool> title_exit_requested{false}; }
 
 REX_EXTERN(__imp__sub_82343880);
