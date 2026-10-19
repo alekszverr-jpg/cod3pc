@@ -1,5 +1,16 @@
 # Russian 098 asset installation
 
+2026-10-19 update: at the user's request compared the entire same source tree
+against assets/game by SHA-256. Only sp/frontend.cod (59,965,440 bytes) differs;
+all other source files, including executables, match. With no cod3pc process
+running, staged and installed that file, preserving its previous version under
+private reports/localization-098/update-20261019/previous. Installed SHA-256:
+E32B88AFC29E7DA4A85D994D09D9218DB1708434D9E3D7234FC1F60F5AE1517C.
+Post-copy hash verification passed; changes.json and installation.json retain
+private evidence. Userdata/checkpoints were untouched. No native rebuild is
+required for this asset-only change; visual acceptance of this revision remains
+pending. This verification does not establish the wording of individual strings.
+
 2026-10-16: installed the user-provided Russian package from
 `E:/PS2/outputs/cod3_x360_port_098_2026-10-16/Call of Duty 3 Xbox 360`
 into private `assets/game`. All 552 files (6,216,645,241 bytes) were checked

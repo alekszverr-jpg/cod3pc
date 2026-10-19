@@ -1,5 +1,34 @@
 # Third mission: Night Drop
 
+## Gameplay crash reported 2026-10-19
+
+Correction prepared 2026-10-19: pinned original nightd.dll inspected with
+InspectCod3.java (private logs/ghidra-nightd-89174700.log). The preceding block
+ends with bctr at 891746FC; target 89174700 is original blr (4E800020), followed
+by zero padding at 89174704. Added exactly this four-byte function boundary in
+configs/nightd_functions.toml and included it in the Night Drop manifest.
+No replacement hook or generated function edit. Strict codegen now registers
+89174700 and emits its original return. Build.ps1 -Stage Codegen, -Stage Tests
+(10 Python + 6 native) and -Stage Build pass; private evidence is in
+logs/nightd-89174700-{codegen,tests,build}-console.log. Initial sandboxed Ghidra
+launch could not write Java settings; the approved rerun produced the evidence.
+
+Original completed-Island profile preserved as nightd_before_boundary_fix_01;
+restored isolated nightd_boundary_fix_01 and opened one normal-menu PID 8180
+with all same-process barriers and DoF 35. Actual passage beyond the crash
+still needs user acceptance; startup alone does not establish this fix.
+
+The previous evening's log survives: `logs/native-20261018-224203-062.log`.
+Night Drop registers 5855 functions and returns successfully from its original
+entry at 22:43:43.577. Gameplay later ends at 22:48:36.891 with:
+`[FATAL] Call to invalid or unregistered function at guest address 0x89174700`.
+This is an unresolved runtime target during Night Drop, not evidence of a
+failed Island teardown. The address must be checked against the pinned original
+nightd.dll in Ghidra before adding a reviewed boundary or changing dispatch;
+the log alone does not establish whether a boundary or a pointer is wrong.
+No fix or repeat gameplay acceptance is claimed. Keep the user's current
+Island session running while investigating offline.
+
 ## Observed blocker, 2026-10-17
 
 User confirmed briefing skip and completion of Island in `island_movie_skip_01`.

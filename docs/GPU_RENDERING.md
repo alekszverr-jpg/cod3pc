@@ -1,5 +1,22 @@
 # Saint-Lo vegetation investigation
 
+## Pending wall occlusion defects (reported 2026-10-19)
+
+Two distinct visible symptoms are tracked without assuming a shared cause:
+
+- Night Drop: a dark silhouette/shadow appears across the exterior stone wall
+  beside a doorway. User reference:
+  `D:/Screenshots/cod3pc_2026_10_18_22_47_35_239.png`.
+- Lamp glow remains visible over opaque walls in Island, continuing the earlier
+  lamp report. Additional user reference:
+  `D:/Screenshots/cod3pc_2026_10_17_15_20_11_581.png`.
+
+Screenshots establish appearance, not the failing draw state. Capture a frame
+in each affected scene and identify the contributing draws, depth/stencil
+state and depth resource before changing rendering. Do not disable shadows or
+lamp effects as a substitute. No new captures are required from the current
+Island checkpoint-transition test; preserve that live session.
+
 Current result (2026-10-13): the scalar-pair compatibility correction is enabled
 by default in the Windows RelWithDebInfo application and normal Run-Native.ps1
 launch. Native frames 22456 and 23280 show tall upright grass without the previous

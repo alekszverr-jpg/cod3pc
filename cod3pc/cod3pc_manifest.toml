@@ -32,4 +32,4 @@ guest_path = "sp/nightd/nightd.dll"
 debug_map = "nightdrop"
 overlay_group = "cod3_campaign"
 out_directory_path = "generated/nightd"
-includes = ["configs/nightd_yields.toml"]
+includes = ["configs/nightd_yields.toml", "configs/nightd_functions.toml"]

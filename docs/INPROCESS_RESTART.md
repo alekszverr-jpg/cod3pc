@@ -46,6 +46,16 @@ Normal close behavior and non-opt-in process handoff remain available.
 
 ## Required acceptance
 
+Accepted 2026-10-19: Island → Night Drop from the isolated island_final snapshot.
+`native-20261019-100318-033.log` records generations 1/2 in PID 58744 and HWND
+0x1a06dc. At 10:08:56–57 all thread/audio/GPU/dispatch/script drains complete,
+pending threads/references and script contexts/fibers are zero; Runtime globals
+clear and campaign DLL count falls 1 → 0. At 10:09:26 the original Night Drop
+entry returns 1 and load status is 0. The user confirms normal operation.
+The same process remains alive. Fullscreen/settings acceptance remains before
+making the mode default; the separate known Night Drop gameplay crash at
+0x89174700 is not fixed by this transition acceptance.
+
 The new COD3_RUNTIME_GENERATION records generation, PID and HWND. A successful
 test requires generation 2 in the same PID/HWND, original entry 82344D00 again,
 Island entry/loader success, no child-process handoff log, and user-confirmed

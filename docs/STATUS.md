@@ -1,5 +1,38 @@
 # Состояние проекта
 
+2026-10-19: Night Drop target 0x89174700 подтверждён Ghidra как настоящая
+четырёхбайтная blr-функция после bctr, пропущенная анализатором. Добавлена
+граница в nightd_functions.toml; strict codegen/16 tests/native build прошли.
+Открыт один nightd_boundary_fix_01 (PID 8180) с копией completed-Island save
+для Continue и повторения вылета. Игровая приёмка исправления ещё ожидается.
+
+2026-10-19: обновлён перевод из прежней пользовательской папки Xbox 360.
+Полное сравнение SHA-256 обнаружило только sp/frontend.cod; файл установлен
+при закрытой игре, предыдущий сохранён, хеш после копирования проверен.
+Исполняемые файлы не менялись; пересборка не нужна. Сохранения не затронуты,
+визуальная приёмка новой ревизии ещё впереди. См. LOCALIZATION_098.md.
+
+2026-10-19: Island → Night Drop принят в том же процессе и окне. Лог
+native-20261019-100318-033.log: generation 1/2, PID 58744, HWND 0x1a06dc;
+в 10:08:56–57 все drain complete, pending threads/refs=0, contexts/fibers=0,
+globals cleared, campaign DLLs 1 → 0. Night Drop entry result=1 и load status=0
+в 10:09:26; пользователь подтвердил загрузку и нормальную работу. island_final
+теперь проверен как точка до completion. Остались fullscreen/settings перед
+решением о default; вылет Night Drop по 0x89174700 ещё не исправлен.
+
+2026-10-19: новая точка пользователя перед финалом Island сохранена в
+island_final после разрешённого штатного закрытия, SHA-256 проверены.
+Открыта её отдельная копия island_final_inprocess_01 (PID 58744) для приёмки
+Continue и Island → Night Drop в том же процессе/окне. Запись ISLAND/i_event_6
+сама по себе не доказывает положение до completion; ждём игровую проверку.
+
+2026-10-19: пользователь продолжает Island с отдельной копией i_event_2
+(island_event2_inprocess_01); ожидается checkpoint до завершения миссии.
+Вчерашний вылет Night Drop найден: native-20261018-224203-062.log,
+22:48:36.891, invalid/unregistered guest function 0x89174700. Это ещё
+неисправленный блокер прохождения; причина требует Ghidra-проверки.
+Скриншоты тени и огоньков поверх стен зафиксированы в GPU_RENDERING.md.
+
 2026-10-19: готового финального Island checkpoint до completion не найдено.
 Копия ISLAND/i_event_6 уже ведёт Continue в Night Drop (подтверждено пользователем).
 Остальные снимки — i_event_1/2. Legacy loadgame требует отдельный SVG на диске;

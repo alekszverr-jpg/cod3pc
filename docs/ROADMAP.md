@@ -1,5 +1,12 @@
 # План разработки нативного порта Call of Duty 3
 
+Уточнение 2026-10-19: Island → Night Drop принят в том же процессе/окне,
+с чистыми thread/audio/GPU/dispatch/script/Runtime барьерами. Вместе с ранее
+принятыми Saint-Lo → Island и menu/Continue это снимает блокер второго
+перехода. Следующая приёмка — fullscreen/settings перед решением о default;
+отдельно устранить известный Night Drop target 0x89174700. Полное прохождение
+Night Drop пока не подтверждено.
+
 Уточнение 2026-10-18: menu → Continue принят после same-process перехода,
 зафиксированы 3 поколения Runtime при тех же PID/HWND. Следующие критерии —
 Island → Night Drop и fullscreen/settings; затем решение о default-режиме.

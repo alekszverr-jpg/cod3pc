@@ -1,0 +1,7 @@
+# Bound to nightd.dll SHA256 ae2f69d2446fed315f298114bddb3cbfc2ca79d631497f8254b974faf79177da.
+# Runtime native-20261018-224203-062.log, 22:48:36: indirect target 89174700.
+# Ghidra InspectCod3.java confirms the preceding block ends with bctr at
+# 891746FC; 89174700 is blr (4E800020), then zero padding at 89174704.
+# Preserve the original one-instruction function, without a replacement hook.
+[functions]
+"0x89174700" = { size = 4 }
