@@ -2,6 +2,38 @@
 
 ## Pending wall occlusion defects (reported 2026-10-19)
 
+Next-session handoff (user deferred the manual probe until tomorrow): two
+complete glow views retained privately as shadow-depth-20261019-233657_capture
+and _capture_2.rdc (1824/1530 draws). First shows glow through wood, second
+direct lantern visibility. A full draw-state inventory of the first frame
+finds no draws with all color write masks zero, depth enabled and depth writes
+disabled; this does not prove why visibility fails.
+
+Read-only original query probe prepared at existing GetData boundary 822ED590.
+Ghidra logs/ghidra-glow-query-readback.log and ghidra-glow-query-instructions.log
+verify type 9 and ZPass subtraction: end +16/+20 minus begin +48/+52, with a
+separate fence-ready check. No Total/ZFail-based formula is assumed. Optional
+cod3_gpu_query_trace logs 128 calls per arm, caller, fences, flags, original
+status/result and the first context's raw ZPass snapshots. Toggling off/on
+rearms it. The hook always calls the original body without changing PPC state,
+memory or results. Earlier incomplete query-format hypotheses are unproven.
+
+10 parser + 6 native tests, strict codegen and native build passed; logs
+glow-query-trace-*. Initial object compile required replacing generated-only
+REX_LOAD macros with local memcpy/endian reads; fixed object/full build passed.
+No new glow rendering correction is claimed. Normal launcher explicitly
+disables the probe; -GpuQueryTrace enables it for diagnostics.
+
+Prior game was already closed. Saved/restored verified nightd_glow_query_01
+and launched exactly one PID 21320, logs/native-20261020-001341-880.log, DoF35,
+accepted shadow correction on. User will close it and perform the test next
+session. Restart through the ordinary menu with:
+tools/Run-Native.ps1 -Seconds 0 -Interactive -DebugProfile nightd_glow_query_01
+-DofStrength 35 -GpuQueryTrace. At the lamp, F4 cod3_gpu_query_trace off/on,
+close F4 and hold occluded view 2–3 seconds; repeat for direct view. F12 and
+RenderDoc are unnecessary for this CPU-query probe. Inspect logs before
+deciding whether the next fix concerns readiness, counters or another path.
+
 Native acceptance received for PID 1364/nightd_shadow_depth_01: the user
 confirms behind-wall character shadows disappear and ordinary character
 shadows remain. Their same-view A/B screenshots (private

@@ -30,6 +30,7 @@ set(COD3PC_SOURCES
     src/runtime/title_gpu_drain.cpp
     src/runtime/worker_exit.cpp
     src/runtime/dof_trace.cpp
+    src/runtime/gpu_query_trace.cpp
     src/runtime/movie_skip.cpp
 )
 

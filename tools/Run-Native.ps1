@@ -3,7 +3,7 @@ param([int]$Seconds = 30, [switch]$Headless, [switch]$Interactive,
     [switch]$FirstMission, [switch]$SynchronousMemexport, [switch]$GpuCoherencyTest,
     [switch]$FullGpuReadback, [switch]$GrassShaderTest, [switch]$StockGpu,
     [switch]$ShaderDiagnostics, [switch]$OcclusionTrace, [switch]$OcclusionSnapshots,
-    [switch]$ShadowDepthSource, [switch]$OriginalShadowDepth,
+    [switch]$ShadowDepthSource, [switch]$OriginalShadowDepth, [switch]$GpuQueryTrace,
     [switch]$CooperativeWorkerExit, [switch]$TransitionDump,
     [switch]$TitleThreadDrain, [switch]$TitleAudioDrain, [switch]$TitleGpuDrain,
     [switch]$TitleDispatchDrain, [switch]$TitleRuntimeTeardown, [switch]$TitleInProcessRestart,
@@ -111,6 +111,7 @@ foreach ($taskTransitionFlag in @(
     if (!$taskTransitionFlag[1]) { $arguments += "--$($taskTransitionFlag[0])=false" }
 }
 if ($Interactive) { $arguments += @('--mnk_mode','true') }
+$arguments += "--cod3_gpu_query_trace=$($GpuQueryTrace.ToString().ToLowerInvariant())"
 if ($FirstMission) { $arguments += @('--cl','"+spmap saint_lo"') }
 if ($DebugMission) { $arguments += @('--cl', ('"+devmap {0}"' -f $taskSelectedLevel[0].map)) }
 if ($ShaderDiagnostics) {
