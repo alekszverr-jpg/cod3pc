@@ -2,6 +2,19 @@
 
 ## Standard launcher preset, 2026-10-19
 
+Repeat acceptance complete: the user confirms menu/Continue works in the same
+window and feels fast. At 15:45:27–28 the same log records zero script contexts/
+fibers, cleared Runtime globals and campaign DLLs 1 → 0; generation 2 retains
+PID 23612/HWND 0x160cb2. Night Drop entry returns 1 at 15:46:07.141, with no
+FATAL in the inspected log set. This accepts the default-launch repeat cycle.
+Perceived speed is user feedback, not an isolated loading-time benchmark.
+
+First normal-preset launch accepted by the user: Night Drop loaded correctly.
+native-20261019-154208-583.log shows generation 1 PID 23612/HWND 0x160cb2,
+original entry and Night Drop entry result 1 at 15:43:16, no FATAL. The inspected
+log has no generation 2 yet; it establishes initial load, not a new repeat
+menu/Continue acceptance for this launcher invocation.
+
 After the recorded manual acceptance, Run-Native.ps1 now selects the accepted
 same-process path by default, enabling all seven worker/drain/restart controls.
 The normal corrected RelWithDebInfo backend is required. -ProcessRelaunch

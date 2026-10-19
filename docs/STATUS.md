@@ -1,5 +1,18 @@
 # Состояние проекта
 
+2026-10-19: стандартный запуск → Night Drop → меню → Continue принят.
+Пользователь подтвердил прежнее окно и быструю загрузку; лог
+native-20261019-154208-583.log: generation=2, PID 23612/HWND 0x160cb2 прежние,
+clean Runtime/script drain, DLLs 1 → 0, повторный Night Drop entry result=1
+в 15:46:07, FATAL нет. Приёмка нового launcher default завершена; скорость
+не измерялась отдельным benchmark. Текущая игра оставлена открытой.
+
+2026-10-19: первый обычный запуск нового preset принят пользователем:
+Night Drop загружена корректно. native-20261019-154208-583.log подтверждает
+generation=1, PID 23612/HWND 0x160cb2, original entry и Night Drop entry
+result=1 в 15:43:16; FATAL нет. На момент проверки generation=2 ещё нет,
+поэтому именно повторный menu/Continue нового launcher пока не заявляется.
+
 2026-10-19: стандартный Run-Native.ps1 теперь включает принятые same-process
 переходы и все барьеры автоматически. -ProcessRelaunch оставлен для старого
 диагностического пути; stock/experimental GPU требуют его явно. CLI проверки,
