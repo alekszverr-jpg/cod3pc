@@ -20,10 +20,12 @@ ReXGlue runtime and Xenos GPU backend; it does not launch an emulator process.
 The third mission's `nightd.dll` also loads with player control in manual testing;
 full third-mission completion remains unverified.
 Briefings can be skipped with Space or Enter after the original resource wait.
-An opt-in Saint-Lo → Island transition has been verified in the same process and
-window, with working input and audio; returning to the menu and Continue also
-work in that instance. The standard launcher still uses native process relaunch
-while further mission transitions and fullscreen/settings are tested.
+The standard launcher now keeps the same process and window during title
+transitions. Saint-Lo → Island, Island → Night Drop, repeated menu/Continue,
+input/audio and settings/windowed-mode retention have passed manual checks.
+For diagnostic process relaunch, use `-ProcessRelaunch`; stock/experimental GPU
+backends require this option. Direct executable launches retain the SDK's
+individual transition CVar defaults; use the launcher for the accepted preset.
 Remaining work includes campaign modules, spatial audio, and broader stability
 testing. Multiplayer is outside the initial scope.
 
@@ -70,7 +72,7 @@ For level testing with a separate save profile:
 ./tools/Run-Native.ps1 -Seconds 0 -Interactive -DebugMission island -DofStrength 35
 ```
 
-Only integrated native modules can be selected; currently Saint-Lo and Island.
+Only integrated native modules can be selected; currently Saint-Lo, Island and Night Drop.
 Debug launches use the original engine's `devmap` command and isolated data
 under `userdata/debug-levels/`. Normal campaign saves are not modified.
 

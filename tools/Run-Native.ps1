@@ -5,6 +5,7 @@ param([int]$Seconds = 30, [switch]$Headless, [switch]$Interactive,
     [switch]$ShaderDiagnostics, [switch]$CooperativeWorkerExit, [switch]$TransitionDump,
     [switch]$TitleThreadDrain, [switch]$TitleAudioDrain, [switch]$TitleGpuDrain,
     [switch]$TitleDispatchDrain, [switch]$TitleRuntimeTeardown, [switch]$TitleInProcessRestart,
+    [switch]$ProcessRelaunch,
     [ValidateRange(0,100)][int]$DofStrength = 100,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugMission,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugProfile,
@@ -43,6 +44,23 @@ if ($taskGpuPlugin -eq 'xenos-grass' -and $Configuration -ne 'RelWithDebInfo') {
 if ($GpuCoherencyTest -and $Configuration -ne 'RelWithDebInfo') {
     throw 'The GPU coherency test plugin is currently staged only for RelWithDebInfo.'
 }
+# The accepted normal path retains the process/window and requires every drain.
+# Keep individual barrier switches for staged diagnostics with ProcessRelaunch.
+if ($ProcessRelaunch -and $TitleInProcessRestart) {
+    throw 'ProcessRelaunch and TitleInProcessRestart select different transition modes.'
+}
+if (!$ProcessRelaunch) {
+    if ($taskGpuPlugin -ne 'xenos-grass' -or $Configuration -ne 'RelWithDebInfo') {
+        throw 'Same-process transitions require the corrected RelWithDebInfo GPU plugin. Use -ProcessRelaunch for stock/diagnostic backends.'
+    }
+    $CooperativeWorkerExit = $true
+    $TitleThreadDrain = $true
+    $TitleAudioDrain = $true
+    $TitleGpuDrain = $true
+    $TitleDispatchDrain = $true
+    $TitleRuntimeTeardown = $true
+    $TitleInProcessRestart = $true
+}
 $taskUserRoot = Join-Path $ProjectRoot 'userdata'
 $taskProfile = if ($DebugMission) { $DebugMission } else { $DebugProfile }
 if ($taskProfile) { $taskUserRoot = Join-Path $taskUserRoot "debug-levels/$taskProfile" }
@@ -77,6 +95,18 @@ if ($TitleRuntimeTeardown) {
 if ($TitleInProcessRestart) {
     if (!$TitleRuntimeTeardown) { throw 'TitleInProcessRestart requires TitleRuntimeTeardown.' }
     $arguments += '--cod3_title_inprocess_restart'
+}
+# Explicit false values override saved SDK settings during diagnostic launches.
+foreach ($taskTransitionFlag in @(
+    @('cod3_worker_cooperative_exit', $CooperativeWorkerExit),
+    @('cod3_title_thread_drain', $TitleThreadDrain),
+    @('cod3_title_audio_drain', $TitleAudioDrain),
+    @('cod3_title_gpu_drain', $TitleGpuDrain),
+    @('cod3_title_dispatch_drain', $TitleDispatchDrain),
+    @('cod3_title_runtime_teardown', $TitleRuntimeTeardown),
+    @('cod3_title_inprocess_restart', $TitleInProcessRestart)
+)) {
+    if (!$taskTransitionFlag[1]) { $arguments += "--$($taskTransitionFlag[0])=false" }
 }
 if ($Interactive) { $arguments += @('--mnk_mode','true') }
 if ($FirstMission) { $arguments += @('--cl','"+spmap saint_lo"') }
@@ -116,6 +146,7 @@ if ($taskProfile) {
 $proc = Start-Process -FilePath $app -ArgumentList $arguments -WorkingDirectory (Split-Path $app) -WindowStyle $windowStyle -PassThru
 Write-Output "Started native cod3pc PID $($proc.Id)"
 Write-Output "DoF strength: $DofStrength% (100 = original)"
+Write-Output "Title transitions: $(if ($TitleInProcessRestart) { 'same process/window' } else { 'diagnostic process relaunch' })"
 New-Item -ItemType Directory -Force "$ProjectRoot/reports" | Out-Null
 [pscustomobject]@{pid=$proc.Id;log=$logPath;started=[DateTime]::UtcNow.ToString('o');dof_strength=$DofStrength;debug_mission=$DebugMission;user_data_root=$taskUserRoot} |
     ConvertTo-Json | Set-Content "$ProjectRoot/reports/native-last-run.json" -Encoding utf8

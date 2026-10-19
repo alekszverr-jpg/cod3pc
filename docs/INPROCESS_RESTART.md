@@ -1,5 +1,25 @@
 # Same-process title restart experiment
 
+## Standard launcher preset, 2026-10-19
+
+After the recorded manual acceptance, Run-Native.ps1 now selects the accepted
+same-process path by default, enabling all seven worker/drain/restart controls.
+The normal corrected RelWithDebInfo backend is required. -ProcessRelaunch
+explicitly selects the older diagnostic path; individual barrier switches still
+allow staged teardown tests in that mode. Inactive controls are passed as false
+to override any saved SDK settings. Conflicting modes and default same-process
+with a stock/experimental backend are rejected with actionable errors.
+
+This is a launcher preset change; individual SDK CVar defaults for direct exe
+launches are unchanged. No game was stopped or started for this script change.
+CLI dry-run checks verify normal barriers, diagnostic false overrides, stock
+diagnostics, staged barriers and rejection of incompatible combinations.
+Build.ps1 -Stage Tests (16 cases), -Stage Codegen (--ignore-stamp), and native
+CMake build pass. Evidence: logs/transition-default-{cli,tests,codegen,build}.log
+and reports/transition-*-dryrun.json. The preset matches the already accepted
+manual-run flags; a fresh default-launch gameplay check remains for the next
+normal launch rather than interrupting the current session.
+
 ## Window/settings acceptance complete, 2026-10-19
 
 The user separately confirms that windowed mode survives menu → Continue,
