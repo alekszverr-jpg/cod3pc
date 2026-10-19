@@ -2,6 +2,13 @@
 
 ## Gameplay crash reported 2026-10-19
 
+Runtime acceptance 2026-10-19: the user replayed the previously failing area
+with the corrected build and reports no crash. In native-20261019-143620-467.log
+the original Night Drop entry returns 1 at 14:42:55.968; the inspected log set
+contains no FATAL and continues gameplay records through 15:11:56. This accepts
+passage of the reported area, not full mission completion or all indirect
+targets. The current session remains open.
+
 Correction prepared 2026-10-19: pinned original nightd.dll inspected with
 InspectCod3.java (private logs/ghidra-nightd-89174700.log). The preceding block
 ends with bctr at 891746FC; target 89174700 is original blr (4E800020), followed

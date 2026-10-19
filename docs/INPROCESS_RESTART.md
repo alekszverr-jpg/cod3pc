@@ -1,5 +1,28 @@
 # Same-process title restart experiment
 
+## Window/settings acceptance complete, 2026-10-19
+
+The user separately confirms that windowed mode survives menu → Continue,
+following the earlier settings-retention confirmation. This closes the planned
+display-mode/settings acceptance gate. Together with Saint-Lo → Island,
+Island → Night Drop and repeated menu/Continue checks, the tested same-process
+path meets the listed manual acceptance criteria. Default promotion is now a
+separate implementation step; this record does not change launch flags or claim
+full campaign completion. Earlier pending notes below are chronological.
+
+## Night Drop menu/Continue accepted, 2026-10-19
+
+Additional user feedback confirms settings survive menu → Continue, followed
+by explicit confirmation of windowed-mode retention (see acceptance above).
+
+User confirms successful exit to menu and reload. In
+native-20261019-143620-467.log, generation 2 starts at 15:20:34.101 with the
+same PID 8180/HWND 0x190c6a as generation 1. Script contexts/fibers are zero,
+old Runtime globals clear and campaign DLL count falls 1 to 0. Night Drop's
+original entry returns 1 again at 15:21:49.477; no FATAL in the inspected log
+set. This accepts another mission's menu/Continue cycle. Separate follow-up
+feedback then accepted settings and windowed-mode retention.
+
 ## Clean teardown prerequisite accepted, 2026-10-18
 
 User confirmed Island from saint_lo_xex_ownership_01. In parent log
