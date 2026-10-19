@@ -2,6 +2,128 @@
 
 ## Pending wall occlusion defects (reported 2026-10-19)
 
+Snapshot experiment result: user reports glows still visible through walls,
+visible directly, no noticeable slowdown. native-20261019-173132-068.log proves
+host queries remain available and real cumulative counts advance. Interval
+examples include 0, 4, 33, 34 passed samples; no fixed-1000 fallback appears in
+the inspected trace. Thus the host-query defect is real but this experiment
+does not fix the reported glow. It remains explicitly false in normal launcher
+arguments, even if a saved SDK setting enables it. Shadows remain unresolved.
+The user states glows differ from original behavior and wants the shadow
+corrected even if inherited; no emulator comparison is required from the user.
+
+Full guest-frame capture prepared: optional cod3_capture_guest_frame uses the
+existing SDK RenderDoc API, starts at guest frame opening after flushing any
+previous submission, and ends after the guest closing submission. The request
+resets after one frame and is inert by default. An interrupted shutdown capture
+is ended and clearly marked incomplete. GPU/16 tests/strict/native build passed
+(logs/guest-frame-capture-*). GPU installation initially rejected overlapping
+diagnostic/lifecycle patch contexts; Build-GpuGrass now reverses the exact
+optional layer, validates the underlying lifecycle patch normally and reapplies
+the layer, instead of skipping any base check. Retry/install passed.
+
+User had already closed the prior game. Preserved its save as
+nightd_guest_frame_01, restored a fresh profile and opened one RenderDoc PID
+27596 with snapshots/trace disabled. Startup programmatic capture is proven:
+native-20261019-194909-355.log, begin active=true/frame=1 and end success=1/
+frame=2; reports/occlusion-captures/guest_capture.rdc exists. Await a one-shot
+capture in the actual shadow/glow scene via cod3_capture_guest_frame=true,
+rather than another window-Present F12 frame. No visual correction is claimed.
+
+2026-10-19 query trace result: native-20261019-171925-341.log at 17:20:38.665
+shows available=true/active=false for snapshot address 07C3F060, followed by
+available=true/active=true at 07C3F040 (different address, both ZPass fields
+zero). The existing same-address heuristic then disables host queries. All
+subsequent records use available=false and COD3_OCCLUSION_FALLBACK samples=1000.
+No COD3_VIZ records appear in this inspected run. This proves the ZPD fallback
+path is exercised here, not that it also causes the shadow artifact.
+
+The pinned xenos.h documents xe_gpu_depth_sample_counts as LE, 32 bytes, with
+occlusion calculated by subtracting begin and end snapshots. An experimental
+-OcclusionSnapshots mode now implements cumulative real passed-sample snapshots
+at arbitrary destination addresses rather than inferring begin/end from memory
+sentinels. Each submission gets its own D3D12 occlusion segment, resolves it
+before ExecuteCommandLists, and retains the query slot until its actual fence
+completes. Cumulative samples normalize resolution scaling and preserve 32-bit
+wrap rather than saturating. Host indices are not reused until pending segments
+are collected. No constant positive/zero result or effect suppression is added.
+Total_A follows passed samples as in the existing SDK result writer; separate
+ZFail/StencilFail counts are not implemented. This remains an opt-in experiment.
+
+The combined rexglue-v0100-cod3-occlusion-trace.patch now contains both tracing
+and the disabled-by-default snapshot mode; a separate overlapping patch was
+not retained. GPU build, 16 tests, strict codegen, native app build, reverse
+patch check and CLI dryrun pass (logs/occlusion-snapshots-*). After permission,
+normally closed PID 62028, saved verified nightd_occlusion_snapshots_01 and
+restored its fresh profile. Installed the matched GPU plugin and opened one
+PID 62736 with -OcclusionTrace -OcclusionSnapshots. Real query values, hidden/
+visible glow behavior and performance acceptance remain pending. Shadows are
+still independently unresolved.
+
+Additional capture/trace preparation 2026-10-19: four newer user captures
+511501/511746/511782/511850 received. They contain different GPU work (221,
+13, 1767, 1390 draws respectively); 511782 includes full scene construction
+without a final color Present draw, so exports also save the live scene target.
+The earlier automatic controller timed out before these later captures; no
+claim that they were a successfully automated consecutive sequence is made.
+Pixel history on selected wall points in 511782 finds the small full-screen
+fog darkening (9251), not yet the specific shadow-producing draw. This is not
+a shadow fix or proof of a shared cause with the glow.
+
+Prepared opt-in -OcclusionTrace and reproducible
+rexglue-v0100-cod3-occlusion-trace.patch. It logs at most 128 records per packet
+category: D3D12 ZPD host state, base ZPD fixed-count fallback, VIZ_QUERY policy,
+and viz draws suppressed after Hi-Z. It changes no query result, draw policy,
+shader, function boundary or visibility test. The actual pinned base source
+sets VIZ_QUERY results visible and skips viz draws with kill_pix_post_hi_z;
+whether this scene takes those paths now requires runtime evidence.
+
+GPU build, all 16 tests, strict codegen, native CMake build and trace CLI dryrun
+passed (logs/occlusion-query-trace-*). Initial compile of tracing hit ambiguous
+endian-wrapper versus integer ternary operands; explicit uint32_t conversions
+resolved this without changing memory. With explicit permission closed the
+old game normally, preserved current profile as nightd_occlusion_trace_01,
+restored a fresh profile, staged the matched GPU plugin and opened one PID
+62028 with -OcclusionTrace. Actual gameplay/query evidence remains pending;
+the current run does not use RenderDoc, since the next evidence is the log.
+
+2026-10-19 capture analysis (no rendering change yet): six captures received,
+frames 44538, 47594, 52155, 54007, 54763, 55249 in private
+reports/occlusion-captures. Their replay exports reproduce both reported
+symptoms. The final frame has mostly depth-only draws and an already populated
+color image; it does not contain all the draws creating the displayed shadow.
+A consecutive-frame controller is armed for PID 56656: after a new user F12,
+capture four additional frames with the camera held still.
+
+Concrete glow evidence in full frame 54763: PixelHistory on color resource 473,
+MSAA sample 1, pixel (891,203) identifies event 6262, changing RGB approximately
+(0.082,0.090,0.086) to (0.510,0.396,0.220). Pixel (807,284) identifies event
+6264. Both are four-index glow draws with depth testing enabled, GreaterEqual,
+no depth writes or stencil. Post-VS export confirms clip-space z=w=1 for all
+four vertices; sampled scene depth at (891,203) is about 0.005326. Thus this
+draw's conventional reverse-Z test cannot hide it behind the wall. This does
+not establish that the original game intended world-space depth for this quad;
+visibility may instead be decided before submitting the sprite.
+
+Structured capture inspection finds no D3D12 Query chunks in frames 47594,
+54763 or 55249. The pinned SDK has host occlusion-query handling, but can
+disable it and fall back to a fixed positive sample count (default 1000).
+Whether that fallback is actually reached by these scenes is not yet proven;
+trace the guest query packets/state before changing query behavior. No
+zero-sample workaround, global shadow disable or shader-depth replacement is
+accepted from these observations. Private scripts/JSON/PNG exports remain in
+reports/occlusion-captures and are excluded from Git.
+
+Capture session prepared 2026-10-19: with explicit closing permission,
+normally closed the prior game and preserved nightd_default_launch_01 as
+verified snapshot nightd_occlusion_01. Restored a fresh profile of that name,
+launched exactly one cod3pc via RenderDoc 1.46 capture CLI (actual --help
+checked), same-process default flags and DoF 35. PID 56656, HWND 0x1d0c72,
+log native-20261019-155604-960.log; loaded renderdoc.dll and original entry
+confirmed. Capture template: reports/occlusion-captures/nightd. Awaiting user
+F12 frames of the shadow-through-wall and a nearby comparison angle; glow
+frames requested only if available. No rendering patch or diagnosis yet.
+
 Two distinct visible symptoms are tracked without assuming a shared cause:
 
 - Night Drop: a dark silhouette/shadow appears across the exterior stone wall

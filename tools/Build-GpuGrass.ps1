@@ -5,6 +5,15 @@ $taskSdkHead = & $Git -C $taskSdkRoot rev-parse HEAD
 if ($LASTEXITCODE -ne 0 -or $taskSdkHead -ne $taskPinnedSdk) {
     throw 'Grass shader experiment requires the reviewed ReXGlue source commit.'
 }
+# The optional diagnostics extend the same lifecycle methods as title drain.
+# Temporarily reverse this exact reviewed layer before validating its base,
+# then reapply below. Never bypass the base patch verification.
+$taskOcclusionTracePatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-cod3-occlusion-trace.patch'
+& $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskOcclusionTracePatch 2>$null
+if ($LASTEXITCODE -eq 0) {
+    & $Git -C $taskSdkRoot apply --reverse --ignore-whitespace $taskOcclusionTracePatch
+    if ($LASTEXITCODE -ne 0) { throw 'Reversing the exact optional GPU diagnostic layer failed.' }
+}
 $taskPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-cod3-grass-alu.patch'
 $taskOldPositionPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-cod3-grass-position.patch'
 & $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskOldPositionPatch 2>$null
@@ -41,6 +50,14 @@ if ($LASTEXITCODE -ne 0) {
     if ($LASTEXITCODE -ne 0) { throw 'GPU lifecycle patch context differs.' }
     & $Git -C $taskSdkRoot apply --ignore-whitespace $taskDrainPatch
     if ($LASTEXITCODE -ne 0) { throw 'Applying GPU lifecycle patch failed.' }
+}
+$taskOcclusionTracePatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-cod3-occlusion-trace.patch'
+& $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskOcclusionTracePatch 2>$null
+if ($LASTEXITCODE -ne 0) {
+    & $Git -C $taskSdkRoot apply --check --ignore-whitespace $taskOcclusionTracePatch
+    if ($LASTEXITCODE -ne 0) { throw 'GPU occlusion trace patch context differs.' }
+    & $Git -C $taskSdkRoot apply --ignore-whitespace $taskOcclusionTracePatch
+    if ($LASTEXITCODE -ne 0) { throw 'Applying GPU occlusion trace patch failed.' }
 }
 & $CMake --build "$taskSdkRoot/out/build/win-amd64" --config RelWithDebInfo --target rexgpu-xenos --parallel 4 `
     2>&1 | Tee-Object "$ProjectRoot/logs/gpu-grass-build.log"

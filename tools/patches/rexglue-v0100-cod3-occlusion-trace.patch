@@ -1,0 +1,275 @@
+--- a/src/graphics/command_processor.cpp
++++ b/src/graphics/command_processor.cpp
+@@ -36,6 +36,10 @@
+ #include <rex/system/user_module.h>
+ 
+ REXCVAR_DEFINE_BOOL(vsync, true, "GPU", "Enable vertical sync");
++
++REXCVAR_DEFINE_BOOL(cod3_occlusion_trace, false, "GPU",
++                    "Log bounded occlusion packet evidence without changing visibility results")
++    .debug_only();
+ 
+ REXCVAR_DEFINE_BOOL(clear_memory_page_state, true, "GPU",
+                     "Refresh page-valid state from GPU-written memory at frame end. "
+@@ -1327,6 +1331,12 @@
+   // This command is send on query begin and end.
+   // As a workaround report some fixed amount of passed samples.
+   auto fake_sample_count = REXCVAR_GET(query_occlusion_fake_sample_count);
++  static uint32_t cod3_fallback_trace_count = 0;
++  if (REXCVAR_GET(cod3_occlusion_trace) && cod3_fallback_trace_count++ < 128) {
++    REXLOG_INFO("COD3_OCCLUSION_FALLBACK address={:08X} initiator={:08X} samples={}",
++                register_file_->values[XE_GPU_REG_RB_SAMPLE_COUNT_ADDR], initiator,
++                fake_sample_count);
++  }
+   if (fake_sample_count >= 0) {
+     auto* pSampleCounts = memory_->TranslatePhysical<xe_gpu_depth_sample_counts*>(
+         register_file_->values[XE_GPU_REG_RB_SAMPLE_COUNT_ADDR]);
+@@ -1438,6 +1448,13 @@
+ 
+   if (draw_succeeded) {
+     auto viz_query = register_file_->Get<reg::PA_SC_VIZ_QUERY>();
++    static uint32_t cod3_viz_draw_trace_count = 0;
++    if (REXCVAR_GET(cod3_occlusion_trace) && viz_query.viz_query_ena &&
++        cod3_viz_draw_trace_count++ < 128) {
++      REXLOG_INFO("COD3_VIZ_DRAW enabled=true kill_after_hiz={} indices={}",
++                  bool(viz_query.kill_pix_post_hi_z),
++                  uint32_t(vgt_draw_initiator.num_indices));
++    }
+     if (!(viz_query.viz_query_ena && viz_query.kill_pix_post_hi_z)) {
+       // TODO(Triang3l): Don't drop the draw call completely if the vertex
+       // shader has memexport.
+@@ -1657,6 +1674,11 @@
+ 
+   uint32_t id = dword0 & 0x3F;
+   uint32_t end = dword0 & 0x100;
++  static uint32_t cod3_viz_trace_count = 0;
++  if (REXCVAR_GET(cod3_occlusion_trace) && cod3_viz_trace_count++ < 128) {
++    REXLOG_INFO("COD3_VIZ_QUERY id={} end={} result_policy=visible_fallback", id,
++                end != 0);
++  }
+   if (!end) {
+     // begin a new viz query @ id
+     // On hardware this clears the internal state of the scan converter (which
+--- a/src/graphics/d3d12/command_processor.cpp
++++ b/src/graphics/d3d12/command_processor.cpp
+@@ -35,6 +35,16 @@
+ REXCVAR_DEFINE_BOOL(d3d12_bindless, true, "GPU/D3D12", "Use bindless resources where available")
+     .lifecycle(rex::cvar::Lifecycle::kRequiresRestart);
+ 
++REXCVAR_DECLARE(bool, cod3_occlusion_trace);
++
++REXCVAR_DEFINE_BOOL(cod3_occlusion_snapshots, false, "GPU/D3D12",
++                    "Use real cumulative ZPD sample counter snapshots across submissions")
++    .lifecycle(rex::cvar::Lifecycle::kRequiresRestart);
++
++REXCVAR_DEFINE_BOOL(cod3_capture_guest_frame, false, "GPU/D3D12",
++                    "Capture one complete guest GPU frame with connected RenderDoc; resets after request")
++    .debug_only();
++
+ REXCVAR_DEFINE_BOOL(d3d12_readback_memexport, false, "GPU/D3D12",
+                     "Read data written by memory export in shaders on the CPU")
+     .lifecycle(rex::cvar::Lifecycle::kHotReload);
+@@ -152,8 +162,27 @@
+ 
+ bool D3D12CommandProcessor::ExecutePacketType3_EVENT_WRITE_ZPD(memory::RingBuffer* reader,
+                                                                uint32_t packet, uint32_t count) {
++  static uint32_t cod3_host_trace_count = 0;
++  if (REXCVAR_GET(cod3_occlusion_trace) && cod3_host_trace_count++ < 128) {
++    auto address = register_file_->values[XE_GPU_REG_RB_SAMPLE_COUNT_ADDR];
++    auto* counts = memory_->TranslatePhysical<xenos::xe_gpu_depth_sample_counts*>(address);
++    REXLOG_INFO("COD3_OCCLUSION_HOST enabled={} available={} active={} address={:08X} active_address={:08X} zpass_a={:08X} zpass_b={:08X}",
++                REXCVAR_GET(occlusion_query_enable), occlusion_query_resources_available_,
++                active_occlusion_query_.valid, address,
++                active_occlusion_query_.sample_count_address,
++                counts ? uint32_t(counts->ZPass_A) : 0u,
++                counts ? uint32_t(counts->ZPass_B) : 0u);
++  }
+   if (!REXCVAR_GET(occlusion_query_enable) || !occlusion_query_resources_available_) {
+     return CommandProcessor::ExecutePacketType3_EVENT_WRITE_ZPD(reader, packet, count);
++  }
++
++  if (REXCVAR_GET(cod3_occlusion_snapshots)) {
++    assert_true(count == 1);
++    uint32_t initiator = reader->ReadAndSwap<uint32_t>();
++    WriteRegister(XE_GPU_REG_VGT_EVENT_INITIATOR, initiator & 0x3F);
++    return WriteOcclusionCounterSnapshot(
++        register_file_->values[XE_GPU_REG_RB_SAMPLE_COUNT_ADDR]);
+   }
+ 
+   const uint32_t kQueryFinished = rex::byte_swap(0xFFFFFEED);
+@@ -1627,6 +1656,11 @@
+ }
+ 
+ void D3D12CommandProcessor::ShutdownContext() {
++  if (cod3_renderdoc_capture_active_ && cod3_renderdoc_api_) {
++    cod3_renderdoc_api_->api_1_0_0()->EndFrameCapture(GetD3D12Provider().GetDevice(), nullptr);
++    cod3_renderdoc_capture_active_ = false;
++    REXLOG_WARN("COD3_GUEST_FRAME_CAPTURE ended during shutdown; incomplete frame");
++  }
+   const bool queue_idle = AwaitAllQueueOperationsCompletion();
+   title_queue_idle_.store(queue_idle, std::memory_order_release);
+   if (title_shutdown_requested_.load(std::memory_order_acquire) && !queue_idle) {
+@@ -3262,6 +3296,20 @@
+   }
+ 
+   bool is_opening_frame = is_guest_command && !frame_open_;
++  if (is_opening_frame && REXCVAR_GET(cod3_capture_guest_frame)) {
++    REXCVAR_SET(cod3_capture_guest_frame, false);
++    if (!cod3_renderdoc_api_) cod3_renderdoc_api_ = ui::RenderDocAPI::CreateIfConnected();
++    if (cod3_renderdoc_api_ && !cod3_renderdoc_api_->api_1_0_0()->IsFrameCapturing()) {
++      if (submission_open_ && !EndSubmission(false)) return false;
++      cod3_renderdoc_api_->api_1_0_0()->StartFrameCapture(GetD3D12Provider().GetDevice(), nullptr);
++      cod3_renderdoc_capture_active_ =
++          cod3_renderdoc_api_->api_1_0_0()->IsFrameCapturing() != 0;
++      REXLOG_INFO("COD3_GUEST_FRAME_CAPTURE begin active={} frame={}",
++                  cod3_renderdoc_capture_active_, frame_current_);
++    } else {
++      REXLOG_WARN("COD3_GUEST_FRAME_CAPTURE unavailable or another capture active");
++    }
++  }
+   if (submission_open_ && !is_opening_frame) {
+     return true;
+   }
+@@ -3332,6 +3380,21 @@
+     primitive_processor_->BeginSubmission();
+ 
+     texture_cache_->BeginSubmission(submission_current_);
++    if (REXCVAR_GET(cod3_occlusion_snapshots) && occlusion_counter_started_ &&
++        occlusion_query_resources_available_) {
++      // A query cannot span ExecuteCommandLists. Start a fresh segment and
++      // retain its result through the real submission fence at EndSubmission.
++      if (occlusion_query_cursor_ >= kMaxOcclusionQueries &&
++          !CollectOcclusionCounterSegments()) {
++        return false;
++      }
++      uint32_t index;
++      if (!AcquireOcclusionQueryIndex(index)) return false;
++      deferred_command_list_.D3DBeginQuery(occlusion_query_heap_.Get(),
++                                          D3D12_QUERY_TYPE_OCCLUSION, index);
++      active_occlusion_query_.host_index = index;
++      active_occlusion_query_.valid = true;
++    }
+   }
+ 
+   if (is_opening_frame) {
+@@ -3410,6 +3473,13 @@
+     if (active_occlusion_query_.valid && occlusion_query_heap_) {
+       deferred_command_list_.D3DEndQuery(occlusion_query_heap_.Get(), D3D12_QUERY_TYPE_OCCLUSION,
+                                          active_occlusion_query_.host_index);
++      if (REXCVAR_GET(cod3_occlusion_snapshots) && occlusion_counter_started_) {
++        uint32_t index = active_occlusion_query_.host_index;
++        deferred_command_list_.D3DResolveQueryData(
++            occlusion_query_heap_.Get(), D3D12_QUERY_TYPE_OCCLUSION, index, 1,
++            occlusion_query_readback_.Get(), sizeof(uint64_t) * index);
++        occlusion_counter_pending_.push_back({index, submission_current_});
++      }
+       active_occlusion_query_ = {};
+     }
+ 
+@@ -3496,6 +3566,13 @@
+ 
+       shared_memory_->ClearCache();
+     }
++  }
++
++  if (is_closing_frame && cod3_renderdoc_capture_active_ && cod3_renderdoc_api_) {
++    uint32_t success = cod3_renderdoc_api_->api_1_0_0()->EndFrameCapture(
++        GetD3D12Provider().GetDevice(), nullptr);
++    cod3_renderdoc_capture_active_ = false;
++    REXLOG_INFO("COD3_GUEST_FRAME_CAPTURE end success={} frame={}", success, frame_current_);
+   }
+ 
+   return true;
+@@ -4808,6 +4885,9 @@
+ }
+ 
+ bool D3D12CommandProcessor::InitializeOcclusionQueryResources() {
++  occlusion_counter_started_ = false;
++  occlusion_counter_samples_ = 0;
++  occlusion_counter_pending_.clear();
+   active_occlusion_query_ = {};
+   occlusion_query_cursor_ = 0;
+   occlusion_query_resources_available_ = false;
+@@ -4869,6 +4949,45 @@
+   occlusion_query_readback_mapping_ = nullptr;
+   occlusion_query_readback_.Reset();
+   occlusion_query_heap_.Reset();
++}
++
++bool D3D12CommandProcessor::CollectOcclusionCounterSegments() {
++  if (occlusion_counter_pending_.empty()) return true;
++  uint64_t submission = occlusion_counter_pending_.back().submission;
++  CheckSubmissionFence(submission);
++  if (submission_completed_ < submission || !occlusion_query_readback_mapping_) {
++    REXLOG_ERROR("COD3_OCCLUSION_COUNTER fence incomplete submission={}", submission);
++    return false;
++  }
++  for (const auto& segment : occlusion_counter_pending_) {
++    occlusion_counter_samples_ += occlusion_query_readback_mapping_[segment.host_index];
++  }
++  occlusion_counter_pending_.clear();
++  return true;
++}
++
++bool D3D12CommandProcessor::WriteOcclusionCounterSnapshot(uint32_t address) {
++  auto* counts = memory_->TranslatePhysical<xenos::xe_gpu_depth_sample_counts*>(address);
++  if (!counts) return false;
++  // Closing the current submission resolves its segment, even if the original
++  // game's interval crosses command-list or frame boundaries.
++  if (submission_open_ && !EndSubmission(false)) return false;
++  if (!CollectOcclusionCounterSegments()) return false;
++  occlusion_counter_started_ = true;
++  uint32_t samples = uint32_t(NormalizeOcclusionSamples(occlusion_counter_samples_));
++  // Preserve the original LE counter ABI and unsigned 32-bit wrap semantics;
++  // clamping a cumulative counter would break guest end-minus-begin queries.
++  std::memset(counts, 0, sizeof(*counts));
++  counts->Total_A = samples;
++  counts->ZPass_A = samples;
++  if (REXCVAR_GET(cod3_occlusion_trace)) {
++    static uint32_t trace_count = 0;
++    if (trace_count++ < 128) {
++      REXLOG_INFO("COD3_OCCLUSION_COUNTER address={:08X} samples={} raw_samples={}",
++                  address, samples, occlusion_counter_samples_);
++    }
++  }
++  return true;
+ }
+ 
+ bool D3D12CommandProcessor::AcquireOcclusionQueryIndex(uint32_t& host_index_out) {
+--- a/include/rex/graphics/d3d12/command_processor.h
++++ b/include/rex/graphics/d3d12/command_processor.h
+@@ -21,6 +21,7 @@
+ #include <unordered_map>
+ #include <utility>
+ #include <vector>
++#include <rex/ui/renderdoc_api.h>
+ 
+ #include <rex/assert.h>
+ #include <rex/graphics/command_processor.h>
+@@ -403,6 +404,8 @@
+   }
+ 
+   bool InitializeOcclusionQueryResources();
++  bool WriteOcclusionCounterSnapshot(uint32_t sample_count_address);
++  bool CollectOcclusionCounterSegments();
+   void ShutdownOcclusionQueryResources();
+   bool BeginGuestOcclusionQuery(uint32_t sample_count_address);
+   bool EndGuestOcclusionQuery(uint32_t sample_count_address,
+@@ -659,6 +662,17 @@
+     uint32_t host_index = UINT32_MAX;
+     bool valid = false;
+   } active_occlusion_query_;
++  // EVENT_WRITE_ZPD snapshots cumulative hardware counters. Guest D3D may
++  // subtract snapshots at different addresses, without any END sentinel.
++  bool occlusion_counter_started_ = false;
++  std::unique_ptr<ui::RenderDocAPI> cod3_renderdoc_api_;
++  bool cod3_renderdoc_capture_active_ = false;
++  uint64_t occlusion_counter_samples_ = 0;
++  struct OcclusionCounterSegment {
++    uint32_t host_index;
++    uint64_t submission;
++  };
++  std::vector<OcclusionCounterSegment> occlusion_counter_pending_;
+   struct VertexBufferState {
+     uint32_t address = UINT32_MAX;
+     uint32_t size = UINT32_MAX;
