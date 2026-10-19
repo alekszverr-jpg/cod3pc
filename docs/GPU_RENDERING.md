@@ -2,6 +2,23 @@
 
 ## Pending wall occlusion defects (reported 2026-10-19)
 
+Native acceptance received for PID 1364/nightd_shadow_depth_01: the user
+confirms behind-wall character shadows disappear and ordinary character
+shadows remain. Their same-view A/B screenshots (private
+shadow-depth-accepted-on.png / shadow-depth-accepted-off.png) show the dark
+irregular masonry patches disappear when the flag is on, while stone relief
+and seams remain. This supports a material shading defect; tessellation has
+not been established as its cause. Acceptance covers the identified material
+and tested scene, not every campaign shader.
+
+Run-Native now enables the accepted bounded correction by default for the
+corrected GPU plugin. -OriginalShadowDepth restores the prior behavior for
+comparison; -ShadowDepthSource remains compatible with diagnostic commands.
+The SDK CVar itself stays false for direct executable launches. No new GPU
+binary or game restart is needed for this launcher-default promotion. Default
+and original-mode dryruns prove true/false arguments respectively. Glow
+visibility remains the active graphics blocker; this patch does not affect it.
+
 Three complete guest captures received from PID 24004: guest-restart-20261019-
 223847_capture{,_2,_3}.rdc, with 1718/1343/1346 draws. Log records success=1
 at guest frames 39128, 39796 and 39847. First shows a clear character silhouette
