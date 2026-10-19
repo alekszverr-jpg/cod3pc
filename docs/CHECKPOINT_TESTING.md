@@ -1,5 +1,26 @@
 # Снимки контрольных точек
 
+2026-10-19: проверка поздней Island. Снимок nightd_after_island_01 содержит
+строки ISLAND/i_event_6, но пользователь подтвердил: Continue выбирает Night
+Drop. Имя checkpoint внутри файла не доказывает возможность его повторной
+загрузки после отметки о завершении миссии. Остальные оригинальные копии
+содержат i_event_1 либо i_event_2; проверенного финального Island до completion
+среди них нет. Для теста Island → Night Drop нужен именно конец старой миссии.
+
+Ghidra по текущему E057 XEX: loadgame зарегистрирован на 82518580,
+loadgame_restart на 82518518; loadgame_continue использует tail branch
+82515030 → 82514530. Первые два читают обычные SVG-файлы, формат имени
+save/autosave/%s.svg берётся из 820695C4. При прямом +loadgame autosave/island.svg
+в отдельном island_checkpoint_direct_01 лог native-20261019-090857-599.log
+показывает NO_SUCH_FILE для d:\save\autosave\island.svg. Оригинальный Xbox
+сейв в content package не преобразовывался в SVG. Экспериментальный флаг runner
+удалён после неуспеха; рабочий launcher остался прежним. spmap читает карту,
+но проверенный обработчик не принимает отдельный checkpoint аргумент.
+Private evidence: ghidra-loadgame-registration.log, ghidra-loadgame-handlers.log,
+ghidra-checkpoint-restore-path.log, ghidra-spmap-checkpoint-args.log,
+ghidra-spmap-load-state.log. ReadCod3Strings.java — read-only вспомогательный
+скрипт; вывод оригинальных строк хранится только в приватных logs.
+
 Подтверждение 2026-10-15: из копии saint_lo_final пользователь завершил
 Saint-Lo и после native relaunch получил управляемую Island. Снимок пригоден
 для повторения этого перехода; дальнейшая автозапись затрагивает только

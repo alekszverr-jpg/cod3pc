@@ -1,5 +1,12 @@
 # Состояние проекта
 
+2026-10-19: готового финального Island checkpoint до completion не найдено.
+Копия ISLAND/i_event_6 уже ведёт Continue в Night Drop (подтверждено пользователем).
+Остальные снимки — i_event_1/2. Legacy loadgame требует отдельный SVG на диске;
+тест в отдельном профиле вернул NO_SUCH_FILE, файлы Xbox save не редактировались.
+Непрошедший launcher-эксперимент удалён. Проверка Island → Night Drop остаётся
+отдельной от прямой загрузки Night Drop. См. CHECKPOINT_TESTING.md.
+
 2026-10-18: повторный цикл меню → Continue принят в том же окне: generation=3
 с прежними PID 51848/HWND 0x1609da в 22:35:11, повторный teardown чистый,
 Island entry/loader успешны в 22:35:41. Пользователь подтвердил меню и Continue.
