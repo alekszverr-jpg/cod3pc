@@ -14,6 +14,12 @@ if ($LASTEXITCODE -eq 0) {
     & $Git -C $taskSdkRoot apply --reverse --ignore-whitespace $taskOcclusionTracePatch
     if ($LASTEXITCODE -ne 0) { throw 'Reversing the exact optional GPU diagnostic layer failed.' }
 }
+$taskShadowDepthPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-cod3-shadow-depth-source.patch'
+& $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskShadowDepthPatch 2>$null
+if ($LASTEXITCODE -eq 0) {
+    & $Git -C $taskSdkRoot apply --reverse --ignore-whitespace $taskShadowDepthPatch
+    if ($LASTEXITCODE -ne 0) { throw 'Reversing the exact optional shadow layer failed.' }
+}
 $taskPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-cod3-grass-alu.patch'
 $taskOldPositionPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-cod3-grass-position.patch'
 & $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskOldPositionPatch 2>$null
@@ -44,6 +50,10 @@ if ($LASTEXITCODE -ne 0) {
     if ($LASTEXITCODE -ne 0) { throw 'Applying DoF setting patch failed.' }
 }
 $taskDrainPatch = Join-Path $PSScriptRoot 'patches/rexglue-v0100-title-gpu-drain.patch'
+& $Git -C $taskSdkRoot apply --check --ignore-whitespace $taskShadowDepthPatch
+if ($LASTEXITCODE -ne 0) { throw 'GPU shadow depth experiment patch context differs.' }
+& $Git -C $taskSdkRoot apply --ignore-whitespace $taskShadowDepthPatch
+if ($LASTEXITCODE -ne 0) { throw 'Applying GPU shadow depth experiment failed.' }
 & $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskDrainPatch 2>$null
 if ($LASTEXITCODE -ne 0) {
     & $Git -C $taskSdkRoot apply --check --ignore-whitespace $taskDrainPatch

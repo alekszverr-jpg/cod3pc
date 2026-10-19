@@ -1,0 +1,69 @@
+--- a/include/rex/graphics/pipeline/shader/dxbc_translator.h
++++ b/include/rex/graphics/pipeline/shader/dxbc_translator.h
+@@ -179,6 +179,8 @@
+       // Optional CoD3 final DoF blend reduction, 0 preserves original output.
+       // Part of the translation key so different settings cannot share bytecode.
+       uint32_t cod3_dof_reduction : 7;
++      // Opt-in title-specific depth-source experiment, separate cache key.
++      uint32_t cod3_shadow_depth_source : 1;
+     } pixel;
+ 
+     explicit Modification(uint64_t modification_value = 0) : value(modification_value) {
+--- a/src/graphics/d3d12/pipeline_cache.cpp
++++ b/src/graphics/d3d12/pipeline_cache.cpp
+@@ -30,6 +30,8 @@
+ 
+ REXCVAR_DEFINE_INT32(cod3_dof_strength, 100, "GPU",
+                     "CoD3 DoF blend strength percent (0 off, 100 original)");
++REXCVAR_DEFINE_BOOL(cod3_shadow_depth_source, false, "GPU",
++                   "Experimental CoD3 material shadow receiver depth source");
+ #include <rex/dbg.h>
+ #include <rex/perf/counter.h>
+ #include <rex/filesystem.h>
+@@ -859,6 +861,9 @@
+           shader.GetDynamicAddressableRegisterCount(regs.Get<reg::SQ_PROGRAM_CNTL>().ps_num_reg)));
+ 
+   modification.pixel.interpolator_mask = interpolator_mask;
++  if (shader.ucode_data_hash() == UINT64_C(0x881F60CEB930E66D)) {
++    modification.pixel.cod3_shadow_depth_source = REXCVAR_GET(cod3_shadow_depth_source);
++  }
+   if (shader.ucode_data_hash() == UINT64_C(0x257C1107399A3162)) {
+     modification.pixel.cod3_dof_reduction =
+         uint32_t(100 - std::clamp(REXCVAR_GET(cod3_dof_strength), 0, 100));
+--- a/src/graphics/pipeline/shader/dxbc_translator_alu.cpp
++++ b/src/graphics/pipeline/shader/dxbc_translator_alu.cpp
+@@ -624,6 +624,34 @@
+   dxbc::Src operand_0_b(operands_loaded[0].SelectFromSwizzled(1));
+   dxbc::Src operand_1(operands_loaded[1].SelectFromSwizzled(0));
+ 
++  // Opt-in compatibility experiment for one identified CoD3 material ucode.
++  // Guest instruction 37 gates the receiver depth before the PCF comparison.
++  // In captured wall pixels Z retains projected receiver depth, while X has
++  // already been reused by the static/parallax lookup. Replay of the exact
++  // translated shader removes the behind-wall silhouette with Z. General
++  // Xenos scalar semantics and other instructions remain unchanged; legitimate
++  // receiver shadows still require native visual acceptance.
++  if (GetDxbcShaderModification().pixel.cod3_shadow_depth_source &&
++      current_shader().type() == xenos::ShaderType::kPixel &&
++      current_shader().ucode_data_hash() == UINT64_C(0x881F60CEB930E66D) &&
++      instr.scalar_opcode == AluScalarOpcode::kMuls &&
++      instr.scalar_operand_count == 1 && instr.vector_operand_count == 3 &&
++      instr.vector_opcode == AluVectorOpcode::kCndGe &&
++      instr.scalar_result.storage_target == InstructionStorageTarget::kRegister &&
++      instr.scalar_result.storage_index == 0 &&
++      instr.scalar_result.original_write_mask == 0b1000 &&
++      instr.vector_and_constant_result.storage_target == InstructionStorageTarget::kRegister &&
++      instr.vector_and_constant_result.storage_index == 0 &&
++      instr.vector_and_constant_result.original_write_mask == 0b0011) {
++    const auto& source = instr.scalar_operands[0];
++    if (source.storage_source == InstructionStorageSource::kRegister &&
++        source.storage_index == 0 && !source.is_negated && !source.is_absolute_value &&
++        source.storage_addressing_mode == InstructionStorageAddressingMode::kAbsolute &&
++        source.components[0] == SwizzleSource::kW && source.components[1] == SwizzleSource::kX) {
++      operand_0_b = dxbc::Src::R(0, dxbc::Src::kZZZZ);
++    }
++  }
++
+   // Verified only for the original SP grass ucode. These co-issued operations
+   // use different X and W components of the shared third vector source.
+   // The X interpretation injects animation time into height and bends the blade

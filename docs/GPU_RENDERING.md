@@ -2,6 +2,61 @@
 
 ## Pending wall occlusion defects (reported 2026-10-19)
 
+Three complete guest captures received from PID 24004: guest-restart-20261019-
+223847_capture{,_2,_3}.rdc, with 1718/1343/1346 draws. Log records success=1
+at guest frames 39128, 39796 and 39847. First shows a clear character silhouette
+on a low opaque wall; the following pair shows the doorway wall. Scene capture
+includes both material construction and later fog/postprocessing.
+
+First capture: pixel history at (495,300), MSAA sample 1, identifies material
+draw 4504 as producing the dark silhouette. Later draw 7171 is fog; 9562 is
+postprocessing. The material reads character depth atlas 19324 (512x512,
+R32_FLOAT), populated by CopyDst 1821 from compute scratch resource 1295.
+Original material ucode hash 881F60CEB930E66D was extracted privately from the
+closed nightd_occlusion_snapshots_01 cache and disassembled with pinned SDK
+code. Offline translation with modification 0x4000000003FF and source mapping
+produces the exact captured SHEX bytes (51304 bytes, SHA256
+3bee71fdc86723e3457d2d5240afb91e9a2117e81b39f8531d13035d36b7dd20).
+No generated game code or cache data is added to Git.
+
+Opt-in experiment -ShadowDepthSource / cod3_shadow_depth_source substitutes Z
+for X in scalar MULS of guest instruction 37 (CNDGE r0.xy paired with MULS
+r0.w, r0.wx). Z retains projected receiver depth; X has already been reused.
+Captured dark points have Z about 0.912/0.917 while the scalar comparison input
+becomes 0.247; PCF consequently marks all four samples shadowed. This motivates
+a compatibility experiment, not a general change to Xenos scalar semantics.
+The override requires exact ucode hash, opcodes, register/mask/source pattern.
+A new previously unused translation-key bit isolates its pipelines; false
+preserves original translation. Normal launcher explicitly disables it.
+
+RenderDoc shader replacement removes the low-wall silhouette and doorway
+silhouette in the supplied captures. The SDK-generated experimental shader
+also changes the corresponding SM3 zero-operand guard; replay of that shader
+produces exactly the same PNG as the initial one-operand replay experiment.
+Native gameplay and legitimate receiver-shadow preservation remain pending;
+this is not promoted as a default fix. Glow rendering is unchanged.
+
+GPU build, 10 parser + 6 native tests, strict codegen --ignore-stamp and native
+build pass (logs/shadow-depth-*, retry logs for sandbox temp-file access and
+stalled CMake glob checks). Patch-layer reverse/base-check/reapply verified in
+a private source copy; normalized source text matches (Git normalizes EOLs).
+Staged GPU SHA256 C1368D11EFBAA97951D134B2DBA21C13E8A37FF36CFA6D3E8B5B341D8929542A.
+Prior game was already closed. Saved/restored verified nightd_shadow_depth_01
+for isolated native acceptance; current main campaign save is untouched.
+
+Full guest-frame scene capture received: native-20261019-194909-355.log records
+begin active=true/frame=11029 at 19:54:17.476 and end success=1/frame=11030.
+Private guest_capture_2.rdc contains 2427 draws. Scene color is resource 474
+(1040x1264, MSAA2; active scene 1040x624), final scene color resource 499.
+Selected wall pixel histories identify its material draw 4822 and later fog
+11493; the fog is not established as the defective shadow pass. Material draw
+4822 reads a 512x512 R32_FLOAT texture (102814) containing character silhouettes:
+255243 of 262144 texels are zero, maximum 0.7932662964. This is a candidate
+shadow depth atlas, not yet proof of a wrong comparison or a rendering fix.
+Private replay exports, pixel histories and shader disassembly are retained.
+The user withdrew the separate suspected masonry regression; investigation
+continues on the established shadow/glow visibility defects.
+
 Snapshot experiment result: user reports glows still visible through walls,
 visible directly, no noticeable slowdown. native-20261019-173132-068.log proves
 host queries remain available and real cumulative counts advance. Interval

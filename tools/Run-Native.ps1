@@ -3,6 +3,7 @@ param([int]$Seconds = 30, [switch]$Headless, [switch]$Interactive,
     [switch]$FirstMission, [switch]$SynchronousMemexport, [switch]$GpuCoherencyTest,
     [switch]$FullGpuReadback, [switch]$GrassShaderTest, [switch]$StockGpu,
     [switch]$ShaderDiagnostics, [switch]$OcclusionTrace, [switch]$OcclusionSnapshots,
+    [switch]$ShadowDepthSource,
     [switch]$CooperativeWorkerExit, [switch]$TransitionDump,
     [switch]$TitleThreadDrain, [switch]$TitleAudioDrain, [switch]$TitleGpuDrain,
     [switch]$TitleDispatchDrain, [switch]$TitleRuntimeTeardown, [switch]$TitleInProcessRestart,
@@ -134,6 +135,12 @@ if ($OcclusionTrace) {
     $arguments += '--cod3_occlusion_trace=true'
 } elseif ($taskGpuPlugin -eq 'xenos-grass') {
     $arguments += '--cod3_occlusion_trace=false'
+}
+if ($ShadowDepthSource) {
+    if ($taskGpuPlugin -ne 'xenos-grass') { throw 'ShadowDepthSource requires the corrected GPU plugin.' }
+    $arguments += '--cod3_shadow_depth_source=true'
+} elseif ($taskGpuPlugin -eq 'xenos-grass') {
+    $arguments += '--cod3_shadow_depth_source=false'
 }
 if ($OcclusionSnapshots) {
     if ($taskGpuPlugin -ne 'xenos-grass') { throw 'OcclusionSnapshots requires the corrected GPU plugin.' }
