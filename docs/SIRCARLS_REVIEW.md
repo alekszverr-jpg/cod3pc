@@ -8,6 +8,14 @@ provenance for every implementation. No external executable was run, no
 campaign or performance claim reproduced, and no foreign code integrated.
 Selected source evidence stays ignored under reports/sircarls-review/.
 
+Product constraint clarified by the user on 2026-10-20: external reference
+implementations are technical leads, not the desired presentation. All player
+settings belong in the game's own styled/localized menus, with full mouse and
+keyboard operation and binding-aware hints. Debug overlays remain developer
+tools. See ROADMAP.md's PC-version acceptance criteria before adopting any
+external UI, input or settings design. This review does not independently
+assess the demonstration video's UI quality.
+
 ## Useful references and limits
 
 The release's SDK patch notes pin ReXGlue to
