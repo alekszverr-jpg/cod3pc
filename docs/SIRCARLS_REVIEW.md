@@ -42,6 +42,32 @@ validation for patch 0024. Neither proves behavior on our Windows/D3D12 scene.
 Our earlier cumulative-query experiment did not remove the glows; keep it off
 in standard launches. Pending manual testing remains deferred by the user.
 
+## Additional review: input, audio and diagnostics (2026-10-20)
+
+These are source-backed candidates at the same pinned revision, not features
+accepted in our runtime. Source paths below are relative to
+RELEASE/COD_3_WAW_Setup-tool/, unless prefixed docs/ (relative to RELEASE/).
+
+| Candidate | Inspected evidence | Priority and acceptance here |
+|---|---|---|
+| Separate keyboard actions | docs/KEYBINDS.md and recomp/src/game/keybinds/binds.h: game command handlers for reload/use, crouch/prone, weapon slots, lean; controller-button fallback during interactions; releases on focus/menu changes | M7: independent R/F and C/Ctrl, configurable keys, hold/toggle ADS. Verify held keys across menus, Alt-Tab, turrets, vehicles and mixed keyboard/gamepad input; inspect our own original handlers before adding hooks |
+| Raw mouse independent of stick limits | recomp/src/game/mouse_look.cpp consumes accumulated deltas once per guest usercmd, adds view angles, scales ADS by FOV, clears stale motion after menu/loading, yields camera control to QTE | M7: measure equal-distance turns at 30/60/120 FPS and during hitches, ADS sensitivity, no view jump after focus return. Do not import their timeout or sensitivity constants as established behavior |
+| QTE mouse support and timing | recomp/src/game/qte_actions.h and qte_math.h define swirl/toggle/rowing cursor-to-stick behavior, device handoff and above-60-FPS progress corrections | M7 campaign readiness before affected missions: genuine valve, crane and rowing completion at supported rates, camera suppression and return, gamepad still usable. Demo/math alone does not prove a mission can be completed |
+| Prompts follow actual bindings | recomp/src/game/button_prompts.h describes glyph replacement using current action keys and last input device | M7: localized hints must follow remapping and switch back to controller glyphs. Their English stick-hint replacements need adaptation to our Russian assets, not unconditional text replacement |
+| Spatial audio investigation | docs/COD3_AUDIO.md maps game/NSL/FMOD listener and source positions, reported axis conversion (-y,z,x), six-channel output and suspected LFE duplication | M7 existing audio defect: confirm addresses and instruction behavior against our XEX, record each output channel, rotate around a stationary source, compare stereo/5.1 mapping and downmix. External measurements are leads, not a proved cause of our direction/volume issue |
+| Audio continuity/device changes | patches/0061 adjusts XMA output-valid handling and callback pacing; 0032 exposes output-device choice; 0051 follows a system device switch | M7: first test repeated tails, underruns and callback intervals in our Windows output. Add device switch/unplug recovery later with no dangling callbacks across Runtime restart. Their PipeWire results do not validate our driver |
+| Bounded hitch/hang reports | recomp/src/game/thread_profiler.h uses OS thread CPU time plus SDK wait counters; watchdog.cpp reports stalled game progress and repeats at bounded intervals | Diagnostic improvement: explain a hitch with thread/wait/GPU evidence and preserve a dump. Adapt ownership: their watchdog thread is never joined because process termination is assumed, incompatible with our repeated Runtime destruction |
+| Consistent saved settings | patches/0042 separates one-run CLI values from persisted config; recomp/src/game/settings_sync.cpp synchronizes guest profile and archived crosshair cvar | M7/M8: establish explicit precedence for config, launcher override and live edits; test actual full-process restart as well as menu/Continue. Avoid stale guest pointers and callbacks after Runtime recreation |
+| FOV/aspect ratio and render resolution | recomp/src/game/ultrawide.h describes Hor+ world projection, centered HUD/menu/movie handling and full-width damage/fades; docs/SCALING.md separates proposed CPU budgets from applied tuning | M8: wider view without stretched HUD, correct scopes, movies and viewmodel; resolution/render scale after GPU correctness. CPU placement/budget proposals are not measured improvements for our machine |
+| Separate voice language | recomp/src/game/voice_language.cpp selects available owned-disc voice banks from next level load while retaining text language | M8 optional: resource completeness and fallback, including our modified Russian assets. Their listed en/de/fr/es/it support does not establish Russian voice compatibility |
+
+Recommended order after glows: investigate the reported spatial audio defect,
+then complete keyboard actions/prompts and QTE support as campaign content
+requires, while adding bounded profiling when a measured hitch needs it.
+Ultrawide, HD texture replacement, HDR and expanded language controls remain
+optional later work. No new engine, World at War content or multiplayer scope
+is needed to use these references.
+
 ## Source and license boundary
 
 Pinned [patch notes](https://github.com/SirCarls/cod3_REcomp_/blob/2d6d40e6df380f8aa15365a6f308b47a8610ab38/RELEASE/COD_3_WAW_Setup-tool/patches/README.md)
