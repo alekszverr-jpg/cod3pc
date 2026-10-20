@@ -42,3 +42,39 @@ without saving config. Await visual result; this is not yet a correction.
 If it changes the defect, identify the actual buffer and caller, then measure
 the minimal readback scope/cost. If unchanged, trace original lamp visibility
 and data before importing any external query/readback patch stack.
+
+## 2026-10-20: positive readback comparison and remaining fade
+
+In the same live instance the user confirmed that both full and fast remove
+the persistent hidden glow; with fast the directly visible glow remains.
+On crossing a corner it can remain visible about half a second before fading;
+full behaves similarly and the visible glow also appears with a delay.
+Thus immediate readback does not resolve the reported transition latency.
+These are qualitative observations, not timed captures or performance results.
+
+The existing generated boundary 0x8245C208 calls the depth reader at
+0x8245CACC (return LR 0x8245CAD0). Original instructions at 0x8245CAE0 and
+0x8245CAEC subtract/add f17 from a per-record float at +0x24, then clamp the
+value. f17 is loaded from 0x82001930, whose original word 0x3DCCCCCD is 0.1.
+This confirms a gradual visibility update in the original rendering path;
+it does not yet establish the wall-clock duration or prove that all latency
+comes from that update. Ghidra has no containing function at 0x8245CAD0, so
+its decompiler did not produce that caller; raw instruction evidence and
+existing strict-generated code, not an invented function, support the finding.
+Private evidence: logs/ghidra-glow-visibility-update.log and
+logs/ghidra-glow-fade-instructions.log. No original instructions were patched.
+
+Run-Native now explicitly selects fast readback by default. This restores the
+data needed by the original depth visibility logic using existing SDK code;
+no external implementation was copied. -ResolveReadback none restores the
+previous comparison mode, -ResolveReadback full selects synchronous resolve
+readback only, and the existing -FullGpuReadback also synchronizes memexport.
+Conflicting explicit modes are rejected. some remains diagnostic only and
+has not been visually accepted. Mode is included in dry-run and run metadata.
+
+Validation: six PowerShell dry-run combinations and one conflict rejection
+passed, with exactly one resolve argument each; git diff --check passed.
+Only launcher policy/documentation changed: no SDK/native/codegen rebuild or
+process restart was performed. The current game remains open. A fresh normal
+launch and scene/transition regression with the new default are still pending;
+the user-visible fade and whole-resolve copy performance need further checking.

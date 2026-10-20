@@ -2,6 +2,7 @@ param([int]$Seconds = 30, [switch]$Headless, [switch]$Interactive,
     [ValidateSet('Debug','RelWithDebInfo','Release')][string]$Configuration = 'RelWithDebInfo',
     [switch]$FirstMission, [switch]$SynchronousMemexport, [switch]$GpuCoherencyTest,
     [switch]$FullGpuReadback, [switch]$GrassShaderTest, [switch]$StockGpu,
+    [ValidateSet('none','fast','some','full')][string]$ResolveReadback = 'fast',
     [switch]$ShaderDiagnostics, [switch]$OcclusionTrace, [switch]$OcclusionSnapshots,
     [switch]$ShadowDepthSource, [switch]$OriginalShadowDepth, [switch]$GpuQueryTrace,
     [switch]$CooperativeWorkerExit, [switch]$TransitionDump,
@@ -13,6 +14,12 @@ param([int]$Seconds = 30, [switch]$Headless, [switch]$Interactive,
     [ValidatePattern('^[a-z][a-z0-9_]*$')][string]$DebugProfile,
     [switch]$ListLevels, [switch]$DryRun)
 . "$PSScriptRoot/Enter-Toolchain.ps1"
+if ($FullGpuReadback) {
+    if ($PSBoundParameters.ContainsKey('ResolveReadback') -and $ResolveReadback -ne 'full') {
+        throw 'FullGpuReadback requires ResolveReadback full; omit one of the conflicting options.'
+    }
+    $ResolveReadback = 'full'
+}
 $app = Join-Path $ProjectRoot ('cod3pc/out/build/win-amd64-' + $Configuration.ToLowerInvariant() + '/cod3pc.exe')
 if ($DebugMission -and $FirstMission) { throw 'Use DebugMission or FirstMission, not both.' }
 if ($DebugMission -and $DebugProfile -and $DebugMission -cne $DebugProfile) {
@@ -125,8 +132,12 @@ if ($SynchronousMemexport) {
     # Plugin CVars register after CLI parsing: values must use --name=value.
     $arguments += @('--readback_memexport=true','--readback_memexport_fast=false')
 }
+# Original flare visibility reads resolved depth in guest memory. With no
+# readback, glows remain visible through walls. Fast retains the SDK's delayed
+# path; full is a diagnostic comparison, not a forced synchronous default.
+$arguments += "--readback_resolve=$ResolveReadback"
 if ($FullGpuReadback) {
-    $arguments += @('--readback_resolve=full','--readback_memexport=true','--readback_memexport_fast=false')
+    $arguments += @('--readback_memexport=true','--readback_memexport_fast=false')
 }
 if ($taskGpuPlugin -eq 'xenos-grass') {
     $arguments += @('--cod3_grass_scalar_pair_fix=true', "--cod3_dof_strength=$DofStrength")
@@ -155,7 +166,7 @@ if ($OcclusionSnapshots) {
 }
 $windowStyle = if ($Interactive) { 'Normal' } else { 'Hidden' }
 if ($DryRun) {
-    [pscustomobject]@{executable=$app;arguments=$arguments;debug_mission=$DebugMission;user_data_root=$taskUserRoot} |
+    [pscustomobject]@{executable=$app;arguments=$arguments;debug_mission=$DebugMission;user_data_root=$taskUserRoot;resolve_readback=$ResolveReadback} |
         ConvertTo-Json -Depth 3
     return
 }
@@ -171,9 +182,10 @@ if ($taskProfile) {
 $proc = Start-Process -FilePath $app -ArgumentList $arguments -WorkingDirectory (Split-Path $app) -WindowStyle $windowStyle -PassThru
 Write-Output "Started native cod3pc PID $($proc.Id)"
 Write-Output "DoF strength: $DofStrength% (100 = original)"
+Write-Output "Resolve readback: $ResolveReadback"
 Write-Output "Title transitions: $(if ($TitleInProcessRestart) { 'same process/window' } else { 'diagnostic process relaunch' })"
 New-Item -ItemType Directory -Force "$ProjectRoot/reports" | Out-Null
-[pscustomobject]@{pid=$proc.Id;log=$logPath;started=[DateTime]::UtcNow.ToString('o');dof_strength=$DofStrength;debug_mission=$DebugMission;user_data_root=$taskUserRoot} |
+[pscustomobject]@{pid=$proc.Id;log=$logPath;started=[DateTime]::UtcNow.ToString('o');dof_strength=$DofStrength;debug_mission=$DebugMission;user_data_root=$taskUserRoot;resolve_readback=$ResolveReadback} |
     ConvertTo-Json | Set-Content "$ProjectRoot/reports/native-last-run.json" -Encoding utf8
 if ($Seconds -gt 0) {
     if (!$proc.WaitForExit($Seconds * 1000)) {

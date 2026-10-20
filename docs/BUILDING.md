@@ -100,3 +100,11 @@ user_data_root: `userdata/debug-levels/<mission>/`. Основной campaign sa
 `-DryRun` печатает параметры без запуска и создания профиля. Обычный запуск
 без DebugMission остаётся через меню с основным userdata. FirstMission —
 старый отдельный параметр; совместно с DebugMission он отклоняется.
+
+Resolve readback обычного Run-Native установлен в `fast`: оригинальная
+проверка видимости огоньков получает данные GPU вместо постоянного
+просвечивания. Для сравнения: `-ResolveReadback none` (прежний режим) или
+`-ResolveReadback full` (немедленное чтение, потенциально дороже).
+Старый `-FullGpuReadback` дополнительно синхронизирует memexport; его нельзя
+совмещать с явно заданным ResolveReadback, отличным от full. Переключение
+`readback_resolve` через F4 возможно в живой диагностической сессии.
