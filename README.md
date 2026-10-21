@@ -14,10 +14,14 @@ ReXGlue runtime and Xenos GPU backend; it does not launch an emulator process.
   remains unfinished and this is not a stability guarantee.
 - A Saint-Lo checkpoint has been saved and restored after restarting.
 - Grass rendering has a verified compatibility correction.
+- A scoped Night Drop material correction removes the tested through-wall
+  character shadows and black masonry artifacts while retaining ordinary shadows.
+- Resolve readback restores visibility checks for the tested lantern glows;
+  fresh launch and menu/Continue have been checked with the `fast` preset.
 - Optional DoF strength is available; the 35% setting has been visually tested.
 
-`default.xex`, `saint_lo.dll`, and `island.dll` are currently recompiled.
-The third mission's `nightd.dll` also loads with player control in manual testing;
+`default.xex`, `saint_lo.dll`, `island.dll`, and `nightd.dll` are currently recompiled.
+The third mission also loads with player control in manual testing;
 full third-mission completion remains unverified.
 Briefings can be skipped with Space or Enter after the original resource wait.
 The standard launcher now keeps the same process and window during title
@@ -28,6 +32,13 @@ backends require this option. Direct executable launches retain the SDK's
 individual transition CVar defaults; use the launcher for the accepted preset.
 Remaining work includes campaign modules, spatial audio, and broader stability
 testing. Multiplayer is outside the initial scope.
+
+The PC integration goal is settings inside the game's own styled/localized menus,
+complete mouse and keyboard navigation, configurable actions and matching hints.
+These remain development work, not features claimed complete in this repository.
+External implementation reviews and the isolated SirCarls comparison build are
+documented in [SIRCARLS_REVIEW.md](docs/SIRCARLS_REVIEW.md) and
+[SIRCARLS_BUILD.md](docs/SIRCARLS_BUILD.md); external build outputs are not distributed.
 
 See the [verified status](docs/STATUS.md), [roadmap](docs/ROADMAP.md),
 and [known blockers](docs/BLOCKERS.md). Detailed development notes are currently

@@ -24,5 +24,5 @@
       "url": "https://github.com/alekszverr-jpg/cod3pc/blob/main/docs/ROADMAP.md"
     }
   ],
-  "notes": "Early development, single-player only. Native menus and Saint-Lo gameplay have been tested. Island loading, player control and a Saint-Lo-to-Island transition have been verified in local development builds. The full campaign is not supported yet; stability, spatial audio and seamless in-process transitions remain under development. Original user-owned Xbox 360 game assets are required."
+  "notes": "Early development, single-player only. Saint-Lo and Island have been completed in manual testing; Night Drop loads with player control but full completion is unverified. Saint-Lo-to-Island, Island-to-Night-Drop and menu/Continue transitions work in the same process/window in tested builds. Scoped grass, shadow-material and lantern-glow corrections have been checked in specific scenes. Remaining work includes campaign modules, spatial audio, integrated PC menus/input and broader stability testing. Original user-owned Xbox 360 game assets are required."
 }
