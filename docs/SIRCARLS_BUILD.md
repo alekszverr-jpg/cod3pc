@@ -73,6 +73,33 @@ matching devices, output modes, scene and frame settings. Reference patch 0066
 logged successful internal equality checks on 24 restarted decoders, up to
 8 packets each; this is their runtime diagnostic, not acceptance of our MG42 fix.
 
+## User UI evaluation, 2026-10-21
+
+The user reports that the menus and mouse work very well and the in-game
+settings are good. Treat this hands-on assessment as positive evidence for
+this built revision's UI/input, superseding reservations based only on an
+earlier demonstration. MG42 was explicitly not tested yet. The reply does
+not explicitly confirm Continue/checkpoint compatibility; keep that pending.
+
+Targeted source follow-up: pc_menu.h/.cpp retains the game's pages and
+button handlers, derives hit regions from text/gauge rendering, maps pointer
+coordinates through the presentation rectangle to the 640x480 UI, and handles
+clicks, wheel, held/released arrows, cursor visibility and device handoff.
+menu_video.cpp/menu_fov.cpp and the application's save handlers integrate
+additional settings. F2 remains a fallback rather than proof that every
+setting has a matching original-menu page. This is a useful implementation
+reference, not a wholesale replacement of our frontend.
+
+For adaptation, first isolate menu pointer navigation and input ownership;
+then binding-aware hints/raw mouse; then integrated PC settings. Confirm hook
+instructions against our Russian XEX, Russian text/font geometry, windowed
+and fullscreen coordinate mapping, and gamepad behavior. Their deferred save
+callbacks capture the application object and assume a different process
+lifecycle: our same-process restart must unregister listeners/callbacks and
+discard stale guest page pointers before Runtime teardown. License notices
+and exact source revision must accompany any actual code reuse. No UI code
+has been copied into cod3pc yet.
+
 Before first reference launch, check the current cod3pc session and close it
 only when the user has finished. Use an isolated reference save/config and
 record actual menu/gameplay behavior, frame times, input/UI integration,
