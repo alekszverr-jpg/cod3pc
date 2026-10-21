@@ -89,3 +89,13 @@ reports/native-last-run.json records resolve_readback=fast. Original entry
 is confirmed in the log. Requested the lamp hidden/direct comparison without
 F4 and a pause-menu exit/Continue regression, including input/audio and any
 noticeable slowdown. Acceptance is pending; launch alone proves no gameplay.
+
+User subsequently confirmed the result persisted and everything worked after
+the requested fresh-load and menu/Continue check. Runtime log confirms
+generation=2 with unchanged PID 24520 and HWND 0x310c88, all drain barriers
+complete, pending thread/reference counts zero, script contexts/fibers zero,
+and campaign DLL count 1 -> 0 before recreation. Audio endpoint reopened as
+Realtek 2ch/48000 Hz. No FATAL/CRITICAL records were found in this check.
+The tested scene and menu/Continue regression are accepted; no inter-mission
+readback regression or measured frame-time acceptance is implied. The earlier
+reported fade remains a separate observation requiring timing evidence.
