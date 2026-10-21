@@ -75,6 +75,19 @@ logged successful internal equality checks on 24 restarted decoders, up to
 
 ## User UI evaluation, 2026-10-21
 
+Additional hands-on feedback: video skipping works and displays a useful
+skip hint, and the user explicitly says the video can be skipped immediately.
+cutscene_skip.h describes stopping the movie while the original loader keeps
+working and showing the loading screen until ready. Our current skip opens
+only after the asset-loading wait. Adapt immediate presentation skip without
+premature gameplay entry; preserve original loading callbacks and completion.
+This is accepted for the user's tested reference playback; no
+claim about every video or loading state is implied. Our existing Space/Enter
+skip needs an equally discoverable, localized, binding-aware hint when the
+original playback state permits skipping, including during level loading.
+Verify press
+debouncing and that the skip key does not activate gameplay/menu actions.
+
 The user reports that the menus and mouse work very well and the in-game
 settings are good. Treat this hands-on assessment as positive evidence for
 this built revision's UI/input, superseding reservations based only on an
