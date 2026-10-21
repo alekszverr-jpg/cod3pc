@@ -78,3 +78,14 @@ Only launcher policy/documentation changed: no SDK/native/codegen rebuild or
 process restart was performed. The current game remains open. A fresh normal
 launch and scene/transition regression with the new default are still pending;
 the user-visible fade and whole-resolve copy performance need further checking.
+
+## 2026-10-21: fresh-launch regression started
+
+Previous process was absent in an elevated OS process check. Launched exactly
+one instance through the normal menu, same isolated checkpoint profile,
+DoF 35, readback fast explicitly selected by the standard launcher, query
+trace disabled. PID 24520, log logs/native-20261021-092702-382.log;
+reports/native-last-run.json records resolve_readback=fast. Original entry
+is confirmed in the log. Requested the lamp hidden/direct comparison without
+F4 and a pause-menu exit/Continue regression, including input/audio and any
+noticeable slowdown. Acceptance is pending; launch alone proves no gameplay.
