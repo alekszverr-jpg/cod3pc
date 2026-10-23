@@ -44,6 +44,20 @@ See the [verified status](docs/STATUS.md), [roadmap](docs/ROADMAP.md),
 and [known blockers](docs/BLOCKERS.md). Detailed development notes are currently
 mostly in Russian.
 
+## Credits
+
+Special thanks to **SirCarls / NULL**, author of
+[cod3_REcomp_](https://github.com/SirCarls/cod3_REcomp_), for sharing his work
+and agreeing to its reuse with source attribution. Parts of cod3pc's PC menu
+navigation, keyboard prompts, video settings, briefing skip, and gameplay input
+are adapted from that project. Its contributors retain credit for the reused
+code; cod3pc's integration and independent changes are documented separately.
+
+The upstream [MIT copyright and license notice](licenses/SirCarls-COD_3_WAW-MIT.txt)
+is preserved. Source review and attribution notes are recorded in
+[SIRCARLS_REVIEW.md](docs/SIRCARLS_REVIEW.md); adapted source files retain
+their upstream attribution.
+
 ## Building locally
 
 You need Windows x64, MSVC/Windows SDK Build Tools, Python, and the pinned
