@@ -1,0 +1,32 @@
+--- a/src/core/cvar.cpp
++++ b/src/core/cvar.cpp
+@@ -14,6 +14,7 @@
+ #include <fstream>
+ #include <mutex>
+ #include <optional>
++#include <sstream>
+ #include <string_view>
+ #include <unordered_map>
+ 
+@@ -541,7 +542,9 @@
+   for (const auto& entry : GetRegistryStorage()) {
+     if (entry.getter() != entry.default_value) {
+       if (entry.type == FlagType::String) {
+-        result += entry.name + " = \"" + entry.getter() + "\"\n";
++        std::ostringstream encoded;
++        encoded << toml::toml_formatter{toml::value<std::string>{entry.getter()}};
++        result += entry.name + " = " + encoded.str() + "\n";
+       } else {
+         result += entry.name + " = " + entry.getter() + "\n";
+       }
+@@ -556,7 +559,9 @@
+   for (const auto& entry : GetRegistryStorage()) {
+     if (entry.category == category && entry.getter() != entry.default_value) {
+       if (entry.type == FlagType::String) {
+-        result += entry.name + " = \"" + entry.getter() + "\"\n";
++        std::ostringstream encoded;
++        encoded << toml::toml_formatter{toml::value<std::string>{entry.getter()}};
++        result += entry.name + " = " + encoded.str() + "\n";
+       } else {
+         result += entry.name + " = " + entry.getter() + "\n";
+       }

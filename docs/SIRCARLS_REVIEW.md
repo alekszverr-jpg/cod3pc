@@ -1,5 +1,79 @@
 # SirCarls cod3_REcomp_ reference review
 
+## Update review, 2026-10-28
+
+Read GitHub compare through the connected GitHub tool, from previously reviewed
+6ae4839cc780664fd9a1b039173083f0dd4fc9c1 to
+a65c3cba9a3d5cf50f5f9ca10b5c7e073f22b037. Two commits: Nice8
+(9cccd6d, Oct 24 UTC) and Nice9 (a65c3cb, Oct 27 UTC), 152 changed files.
+Source-only review; no foreign build, code integration, asset import or change
+to the pinned reference checkout. Existing cod3pc runtime left alone.
+Compare: https://github.com/SirCarls/cod3_REcomp_/compare/6ae4839cc780664fd9a1b039173083f0dd4fc9c1...a65c3cba9a3d5cf50f5f9ca10b5c7e073f22b037
+
+Most relevant additions under RELEASE/COD_3_WAW_Setup-tool/recomp/src/game:
+
+- server_step.cpp and movement/hooks_sp.cpp: separate 60 Hz campaign/server
+  and player movement steps from rendering, with interpolation. Includes draw
+  flags, local packet handling, vehicle view/linked-part smoothing and special
+  systems between steps. physics_step.cpp additionally restores ragdoll and
+  wheel poses between physics updates. High priority correctness reference;
+  substantial coupled change, not a single timing constant to copy. Recheck
+  original SP instructions and reset every history/pointer on our same-process
+  Runtime restart. Validate 30/60/120/144 FPS, AI, stairs, pickups, vehicles,
+  deaths and mission transitions before enabling.
+- coronas.cpp: default-on time-scaled corona fades above 60 FPS. Separate
+  cod3_corona_trace is explicitly default OFF: rays for corona visibility and
+  ADS focus replace GPU depth reads; budget 240 rays/second, cached visibility
+  for 150 ms or until eye movement of 16 units. A useful experimental lead for
+  our accepted readback_resolve=fast path, not proof of equal visual results,
+  immediate visibility or zero cost. Test fences/foliage/characters, focus,
+  latency and frame time; preserve our current path for A/B.
+- anim_clock.cpp: default-on UI fallback clock correction from vblank count
+  to real time. Separate frame-material-parameter correction defaults OFF;
+  world scene time was already real time according to source. Do not describe
+  this as a proven universal grass/water animation fix.
+- sound_stall.cpp: changes original NSL stuck-sound timeout from 32 to 1000 ms
+  to avoid restarting voices during a mixer stall. Independent of our accepted
+  XMA output-valid MG42 fix; use if repeated dialogue is actually reproduced.
+- voice_language.cpp: refresh retained sound banks at level load after language
+  changes. Supported choices still do not establish our Russian asset support.
+- fov.cpp/viewmodel_flip.cpp: vehicle FOV multiplier and optional mirrored
+  left-hand weapon with scoped material culling correction; mirrored markings
+  remain backwards. Later native in-game settings candidates.
+- button_prompts.cpp: optional key-cap overlay presentation and improved
+  device observation during briefing skip. cutscene_skip.cpp now restricts
+  normal skip to briefing movies; this is an author product choice, not a fix
+  to adopt automatically over our user's accepted behavior.
+
+SDK patch notes: 0072/0120 reduce per-draw profiling overhead; 0121 sampler
+caches and 0124 unchanged-fetch optimization specifically target Vulkan.
+0123 mixes common-path savings with Vulkan-specific changes. The author's
+reported tank-scene 127 -> 153 FPS is their result, not a prediction for our
+D3D12 machine. 0110 asynchronously reads optional replacement textures, not
+the original texture path; 0111/0112 add diagnostic timers. render_list_guard
+cuts invalid render lists to avoid a crash: diagnostics may help investigation,
+but do not import crash suppression as a lifetime fix under project rules.
+
+Rust rendering work remains experimental: SDK 0100 adds host callbacks; pinned
+RELEASE/engine/crates/cod3_render/Cargo.toml describes M1 step 2 as taking and
+counting draws, drawing nothing yet. No complete replacement renderer claimed.
+Keep the official Xenos GPU backend. Multiplayer/split-screen settings remain
+outside our initial single-player scope.
+
+Recommended review order: fixed-rate movement/server/physics correctness,
+then a controlled corona/readback comparison and UI clocks. Optional FOV,
+mirrored weapon and visual key caps follow core correctness. Current pending
+manual binocular/hold-breath tests are unchanged. No new runtime acceptance
+or performance measurement is asserted by this review.
+
+2026-10-23: адаптирована XMA output-valid часть patch 0061 из
+reference main 6ae4839cc780664fd9a1b039173083f0dd4fc9c1: отдельный
+`rexglue-v0100-xma-output-valid.patch`, сохранение валидности пустого кольца
+при отсутствии записанного PCM, включая consume-only fullness. Сохранены
+наш StoreContextMerged и остальные SDK patches. Callback pacing и 0066 не
+переносились. Actual SDK regression до/после воспроизводит разницу; ручной
+результат MG42 ещё ожидается. См. AUDIO.md и MIT notice.
+
 Reviewed 2026-10-20: [repository](https://github.com/SirCarls/cod3_REcomp_),
 revision `2d6d40e6df380f8aa15365a6f308b47a8610ab38`.
 GitHub reports fork=false, but the root README explicitly says it is heavily
@@ -85,3 +159,33 @@ separately assigns SDK patches to ReXGlue's BSD-3-Clause licensing with Xenia
 portions. Review applicable notices and provenance before actual reuse.
 Original/derived game code, generated functions and assets are not imported
 or covered by an assumption about the repository's top-level license.
+
+
+## Update review, 2026-10-22
+
+Fetched origin/main without changing the pinned reference checkout or build.
+Compared d54c1bb877ab364dae2d2f40aa8c6a8ca46e3070 to 6ae4839cc780664fd9a1b039173083f0dd4fc9c1.
+Six new commits, 80 changed files. Latest commit changes MULTIPLAYER.md;
+substantive source changes are in Nice5, Nice6 and Nice7. No new code imported.
+
+| Candidate | Inspected source under RELEASE/COD_3_WAW_Setup-tool/ | Relevance here |
+|---|---|---|
+| Native sliders with numeric entry | recomp/src/game/menu_slider.h/.cpp and menu_fov.cpp | High UI priority: drag, type a value, Enter apply, Esc cancel. Adapt to Russian layout and current Runtime ownership |
+| Vehicle-specific keys | recomp/src/game/keybinds/binds.cpp, model.cpp; RELEASE/docs/KEYBINDS.md | High campaign priority: tank coax/turret, jeep gas/brake/handbrake, view switch; avoid stealing on-foot actions. Requires original SP handler review and vehicle runtime tests |
+| Per-weapon hip/ADS sensitivity | recomp/src/game/aim_sensitivity.h/.cpp and menu_aim.h/.cpp | Useful native control option; neutral 100/100, blend by aiming fraction. Own mouse/action integration and transitions need validation |
+| Fixed physics stepping | recomp/src/game/physics_step.cpp | Author describes glass/boxes/doors behaving badly at high FPS. New hook accumulates time and calls physics at 60 Hz, caps catch-up. Candidate correctness investigation, not a proven fix for cod3pc; check whole call state, mission transitions and actual objects at 30/60/120+ FPS |
+| FPS-independent Sticky Aim | recomp/src/game/sticky_aim.h/.cpp | Candidate timing correctness review; separate from sensitivity, preserve user's off choice and validate original behavior before changes |
+| Motion blur and DoF toggles | recomp/src/game/post_effects.h/.cpp, menu_video.cpp | Optional motion-blur setting fits VIDEO. Our existing graduated DoF control remains useful; foreign binary toggle is not a required replacement |
+| Controller families and rumble | patches/0067-input-the-kind-of-controller-each-player-holds.patch; recomp/src/game/rumble.h/.cpp | Xbox/PlayStation/Nintendo labels and no pad rumble while using keyboard. Requires SDK ABI review and actual mixed-device tests |
+| Weapon position/custom crosshair | recomp/src/game/viewmodel.h/.cpp, menu_aim.h | Optional personalization after baseline controls; offset fades out during ADS. Separate viewmodel FOV explicitly not implemented there |
+
+MP menu/options work is substantial but outside our initial SP scope.
+relaunch.cpp still uses Spawn/CreateProcessW (existing implementation); its
+new change only limits start_in_background to launch options. No evidence of
+same-process transitions in this update. No audio source changes in this diff;
+it supplies no new MG42-loop fix.
+
+Suggested follow-up: finish current UI acceptance; add native slider/number
+input and action bindings with vehicle contexts; investigate physics timing
+with controlled scene evidence. Controller extras and personalization follow.
+All foreign hook addresses remain leads until checked against our pinned XEX.

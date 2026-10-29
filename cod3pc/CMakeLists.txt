@@ -32,6 +32,10 @@ set(COD3PC_SOURCES
     src/runtime/dof_trace.cpp
     src/runtime/gpu_query_trace.cpp
     src/runtime/movie_skip.cpp
+    src/runtime/pc_menu.cpp
+    src/runtime/pc_input.cpp
+    src/runtime/native_video_menu.cpp
+    src/runtime/menu_prompts.cpp
 )
 
 if(WIN32)
@@ -100,6 +104,32 @@ if(BUILD_TESTING)
     add_test(NAME native_title_handoff COMMAND cod3_handoff_test)
     set_tests_properties(native_title_handoff PROPERTIES TIMEOUT 15)
     add_executable(cod3_thread_exit_test ../tests/thread_exit_probe_test.cpp src/runtime/thread_exit_probe.cpp)
+    add_executable(cod3_menu_picture_test ../tests/menu_picture_test.cpp)
+    rexglue_apply_target_settings(cod3_menu_picture_test)
+    add_test(NAME native_menu_picture COMMAND cod3_menu_picture_test)
+    add_executable(cod3_video_options_test ../tests/video_options_test.cpp)
+    rexglue_apply_target_settings(cod3_video_options_test)
+    add_test(NAME native_video_options COMMAND cod3_video_options_test)
+    add_executable(cod3_menu_number_test ../tests/menu_number_test.cpp)
+    rexglue_apply_target_settings(cod3_menu_number_test)
+    add_test(NAME native_menu_number COMMAND cod3_menu_number_test)
+    add_executable(cod3_pc_input_test ../tests/pc_input_test.cpp)
+    target_link_libraries(cod3_pc_input_test PRIVATE rex::runtime)
+    rexglue_apply_target_settings(cod3_pc_input_test)
+    add_test(NAME native_pc_input COMMAND cod3_pc_input_test)
+    add_executable(cod3_raw_mouse_driver_test ../tests/raw_mouse_driver_test.cpp)
+    target_link_libraries(cod3_raw_mouse_driver_test PRIVATE rex::runtime)
+    rexglue_apply_target_settings(cod3_raw_mouse_driver_test)
+    add_test(NAME native_raw_mouse_driver COMMAND cod3_raw_mouse_driver_test)
+    add_executable(cod3_xma_output_valid_test ../tests/xma_output_valid_test.cpp)
+    target_link_libraries(cod3_xma_output_valid_test PRIVATE rex::runtime)
+    rexglue_apply_target_settings(cod3_xma_output_valid_test)
+    add_test(NAME native_xma_output_valid COMMAND cod3_xma_output_valid_test)
+    set_tests_properties(native_xma_output_valid PROPERTIES TIMEOUT 15)
+    add_executable(cod3_config_roundtrip_test ../tests/config_roundtrip_test.cpp)
+    target_link_libraries(cod3_config_roundtrip_test PRIVATE rex::runtime)
+    rexglue_apply_target_settings(cod3_config_roundtrip_test)
+    add_test(NAME native_config_roundtrip COMMAND cod3_config_roundtrip_test)
     rexglue_apply_target_settings(cod3_thread_exit_test)
     add_test(NAME native_thread_exit_probe COMMAND cod3_thread_exit_test)
     set_tests_properties(native_thread_exit_probe PROPERTIES TIMEOUT 10)

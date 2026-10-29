@@ -1,9 +1,9 @@
-. "$PSScriptRoot/Enter-Toolchain.ps1"
+﻿. "$PSScriptRoot/Enter-Toolchain.ps1"
 $taskSdkRoot = Join-Path $ProjectRoot 'external/rexglue-sdk'
 if ((& $Git -C $taskSdkRoot rev-parse HEAD) -ne 'c94f5ebdcb3c9d1a460ca48e04f9758448f8d518') {
     throw 'Title thread drain requires pinned ReXGlue 0.10.0.'
 }
-foreach ($taskPatchName in @('rexglue-v0100-title-thread-drain.patch', 'rexglue-v0100-title-audio-drain.patch', 'rexglue-v0100-title-dispatch-drain.patch', 'rexglue-v0100-thread-exit-ownership.patch', 'rexglue-v0100-start-routine-ownership.patch', 'rexglue-v0100-title-runtime-teardown.patch', 'rexglue-v0100-xex-ownership.patch', 'rexglue-v0100-input-retirement.patch')) {
+foreach ($taskPatchName in @('rexglue-v0100-title-thread-drain.patch', 'rexglue-v0100-title-audio-drain.patch', 'rexglue-v0100-title-dispatch-drain.patch', 'rexglue-v0100-thread-exit-ownership.patch', 'rexglue-v0100-start-routine-ownership.patch', 'rexglue-v0100-title-runtime-teardown.patch', 'rexglue-v0100-xex-ownership.patch', 'rexglue-v0100-input-retirement.patch', 'rexglue-v0100-config-string-escaping.patch', 'rexglue-v0100-raw-mouse-delta.patch', 'rexglue-v0100-xma-output-valid.patch', 'rexglue-v0100-input-activity.patch')) {
     $taskPatch = Join-Path $PSScriptRoot "patches/$taskPatchName"
     & $Git -C $taskSdkRoot apply --reverse --check --ignore-whitespace $taskPatch 2>$null
     if ($LASTEXITCODE -ne 0) {
@@ -22,6 +22,7 @@ $taskOutputs = @(
     @('out/win-amd64/RelWithDebInfo/rexruntimerd.dll', 'bin/rexruntimerd.dll'),
     @('out/win-amd64/RelWithDebInfo/rexruntimerd.lib', 'lib/rexruntimerd.lib'),
     @('out/win-amd64/RelWithDebInfo/rexruntimerd.pdb', 'bin/rexruntimerd.pdb'),
+    @('include/rex/input/mnk/mnk_input_driver.h', 'include/rex/input/mnk/mnk_input_driver.h'),
     @('include/rex/system/kernel_state.h', 'include/rex/system/kernel_state.h'),
     @('include/rex/system/title_thread_gate.h', 'include/rex/system/title_thread_gate.h'),
     @('include/rex/thread/fiber.h', 'include/rex/thread/fiber.h'),
@@ -29,6 +30,8 @@ $taskOutputs = @(
     @('include/rex/input/sdl/sdl_input_driver.h', 'include/rex/input/sdl/sdl_input_driver.h'),
     @('src/ui/rex_app.cpp', 'share/rexglue/rex_app.cpp'),
     @('include/rex/audio/audio_system.h', 'include/rex/audio/audio_system.h'),
+    @('include/rex/input/state_merge.h', 'include/rex/input/state_merge.h'),
+    @('include/rex/audio/xma/context.h', 'include/rex/audio/xma/context.h'),
     @('include/rex/audio/xma/decoder.h', 'include/rex/audio/xma/decoder.h')
 )
 $taskBackup = Join-Path $ProjectRoot 'reports/title-thread-drain/previous-sdk'

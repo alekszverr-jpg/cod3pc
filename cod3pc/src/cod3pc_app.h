@@ -13,6 +13,12 @@
 #include <rex/ui/imgui_drawer.h>
 #include <rex/ui/immediate_drawer.h>
 #include "runtime/fiber_task.h"
+#include "runtime/movie_skip_overlay.h"
+#include "runtime/pc_menu.h"
+#include "runtime/pc_input.h"
+#include "runtime/native_video_menu.h"
+#include "runtime/menu_prompts.h"
+#include "runtime/video_options.h"
 #include <Windows.h>
 #include <array>
 
@@ -62,6 +68,14 @@ class Cod3pcApp : public rex::ReXApp {
     REXLOG_INFO("COD3_RUNTIME_GENERATION generation={} pid={} hwnd={}",
         ++runtime_generation_, GetCurrentProcessId(), window() ? window()->GetNativeWindowHandle() : nullptr);
     ResetCod3MovieSkip();
+    cod3::pcmenu::Reset();
+     cod3::input::Reset();
+    cod3::video::Reset();
+    cod3::menuprompts::Reset();
+    REXLOG_INFO("COD3_VIDEO_SETTINGS dof={} aa={} af={} tearing={}",
+        rex::cvar::GetFlagByName("cod3_dof_strength"), rex::cvar::GetFlagByName("swap_post_effect"),
+        rex::cvar::GetFlagByName("anisotropic_override"),
+        rex::cvar::GetFlagByName("d3d12_allow_variable_refresh_rate_and_tearing"));
     InstallCod3CrashTrace();
     RestoreCod3TitleHandoff();
     REXLOG_INFO("COD3_GPU_SETTINGS memexport={} memexport_fast={} resolve={} page_refresh={}",
@@ -78,6 +92,11 @@ class Cod3pcApp : public rex::ReXApp {
     if (REXCVAR_GET(cod3_title_gpu_drain)) {
       if (Cod3TitleAudioReady()) {
         const bool detached = app_context().CallInUIThreadSynchronous([this]() {
+          FlushVideoSettings();
+          cod3::pcmenu::Detach(window());
+          cod3::input::Detach(window());
+          movie_skip_overlay_.reset();
+          movie_skip_font_ = nullptr;
           if (imgui_drawer()) imgui_drawer()->SetPresenterAndImmediateDrawer(nullptr, nullptr);
           if (immediate_drawer()) immediate_drawer()->SetPresenter(nullptr);
           if (window()) {
@@ -160,6 +179,43 @@ class Cod3pcApp : public rex::ReXApp {
     rex::ui::ProcessKeyEvent(event);
   }
 
+  void OnConfigureFonts(ImFontAtlas* atlas) override {
+    movie_skip_font_ = Cod3MovieSkipOverlay::LoadFont(atlas);
+  }
+
+  void OnConfigurePaths(rex::PathConfig& paths) override {
+    video_config_path_ = paths.config_path;
+  }
+
+  void FlushVideoSettings() {
+    const bool video = cod3::video::TakeSaveRequest(), input = cod3::input::TakeSaveRequest();
+    if (video || input) rex::cvar::SaveConfig(video_config_path_);
+  }
+
+  void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {
+    movie_skip_overlay_ = std::make_unique<Cod3MovieSkipOverlay>(drawer, movie_skip_font_);
+    cod3::input::Attach(window(), 64, [drawer]() {
+      const auto& io = drawer->GetIO(); return io.WantCaptureMouse || io.WantCaptureKeyboard;
+    });
+    cod3::pcmenu::Attach(window(), 63, [drawer]() {
+      const auto& io = drawer->GetIO();
+      return io.WantCaptureMouse || io.WantCaptureKeyboard;
+    });
+    movie_skip_overlay_->on_frame = [this]() {
+      FlushVideoSettings();
+      cod3::pcmenu::UpdateCursor(window());
+      cod3::input::OnUiFrame();
+    };
+  }
+
+  void OnShutdown() override {
+    FlushVideoSettings();
+    cod3::pcmenu::Detach(window());
+    cod3::input::Detach(window());
+    ResetCod3MovieSkip();
+    movie_skip_overlay_.reset();
+  }
+
   // Override virtual hooks for customization:
   // void OnPostInitLogging() override {}
   // void OnPreSetup(rex::RuntimeConfig& config) override {}
@@ -173,6 +229,9 @@ class Cod3pcApp : public rex::ReXApp {
   // void OnShutdown() override {}
   // void OnConfigurePaths(rex::PathConfig& paths) override {}
  private:
+  std::filesystem::path video_config_path_;
+  ImFont* movie_skip_font_ = nullptr;
+  std::unique_ptr<Cod3MovieSkipOverlay> movie_skip_overlay_;
   bool title_consumers_ready_ = false;
   bool inprocess_pending_ = false;
   unsigned runtime_generation_ = 0;

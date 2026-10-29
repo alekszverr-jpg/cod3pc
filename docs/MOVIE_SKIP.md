@@ -1,9 +1,10 @@
 # Loading briefing skip
 
 `cod3_skip_loading_movies` defaults to true. Press **Space** or **Enter**
-after the original loading-resource wait has completed. A press before that
-point is not queued by the PC shortcut; release and press again. The game's
-original controller input remains available. Disable with the executable CVar
+while the loading briefing is playing, including during resource loading.
+The Russian hint appears only while this PC shortcut is available. Stopping
+the video restores the original plain loading screen; asset loading continues.
+The game's original controller input remains available. Disable with the executable CVar
 `--cod3_skip_loading_movies=false`.
 
 This finishes the briefing through the original input and cleanup path. It
@@ -68,3 +69,38 @@ and another briefing/controller test are not established by this one run.
 User acceptance: briefing skipped and the entire Island mission completed.
 The successor also logged another accepted skip before requesting nightd.dll.
 The next crash was missing third-mission native code, tracked in NIGHTDROP.md.
+
+## Early briefing skip and hint, 2026-10-21
+
+Adapted the loading-movie stop/callback approach from
+[SirCarls/cod3_REcomp_](https://github.com/SirCarls/cod3_REcomp_/blob/d54c1bb877ab364dae2d2f40aa8c6a8ca46e3070/RELEASE/COD_3_WAW_Setup-tool/recomp/src/game/cutscene_skip.cpp),
+`CutsceneSkip::OnLoadingMovie`, MIT copyright 2026 COD_3_WAW contributors.
+Notice: `licenses/SirCarls-COD_3_WAW-MIT.txt`. Adaptation retains our existing
+post-load input hook, isolates the stop call with SDK CallFrame and ABI stack
+space, checks actual movie destruction, and resets host state at Runtime exit.
+No generated game implementation, intro timescale changes or assets imported.
+
+Ghidra on the E057 hash above independently confirmed callback 824EECF8
+(`7D8802A6`, body through 824EED1F), stop 824D0528 (`7D8802A6`, through
+824D06DB), and loader 824636D0 assigning callback at manager+0x350.
+Stop destroys the movie/sound and clears 82A2A24C. Only after that succeeds,
+the hook replaces callback 824EECF8 with original plain-screen 82526240.
+It never changes manager load-complete flags. Private evidence:
+`logs/ghidra-early-movie-skip.log`, `logs/ghidra-early-movie-instructions.log`.
+
+The noninteractive hint reads host atomic availability only, without guest
+memory or Runtime pointers. The application owns its lifetime, so it survives
+Runtime recreation without a stale callback. Windows Tahoma supplies Cyrillic;
+if unavailable, a Latin hint uses the existing SDK font. No font asset copied.
+
+Validation and manual acceptance for this new behavior are recorded below;
+earlier acceptance above covers the old post-load shortcut only.
+
+`Build.ps1 -Stage Tests`: 10 Python and 6 native tests passed.
+`Build.ps1 -Stage Build`: strict `--ignore-stamp` validation and native/GPU
+build passed (`logs/early-skip-tests.log`, `logs/early-skip-build.log`).
+One normal-menu instance PID 55680, isolated existing nightd_glow_query_01
+profile. User confirmed early skip, playable level/audio and menu/Continue
+in the same window. The Russian hint displayed, but U+2014 rendered as a
+replacement glyph: the Cyrillic atlas does not include General Punctuation.
+Replaced the separator with ASCII hyphen; no additional font dependency.

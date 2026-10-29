@@ -140,7 +140,10 @@ if ($FullGpuReadback) {
     $arguments += @('--readback_memexport=true','--readback_memexport_fast=false')
 }
 if ($taskGpuPlugin -eq 'xenos-grass') {
-    $arguments += @('--cod3_grass_scalar_pair_fix=true', "--cod3_dof_strength=$DofStrength")
+    $arguments += '--cod3_grass_scalar_pair_fix=true'
+    if ($PSBoundParameters.ContainsKey('DofStrength')) {
+        $arguments += "--cod3_dof_strength=$DofStrength"
+    }
 }
 if ($OcclusionTrace) {
     if ($taskGpuPlugin -ne 'xenos-grass') { throw 'OcclusionTrace requires the corrected GPU plugin.' }
@@ -181,11 +184,13 @@ if ($taskProfile) {
 }
 $proc = Start-Process -FilePath $app -ArgumentList $arguments -WorkingDirectory (Split-Path $app) -WindowStyle $windowStyle -PassThru
 Write-Output "Started native cod3pc PID $($proc.Id)"
-Write-Output "DoF strength: $DofStrength% (100 = original)"
+Write-Output $(if ($PSBoundParameters.ContainsKey('DofStrength')) {
+    "DoF strength override: $DofStrength% (100 = original)"
+} else { 'DoF strength: saved config, or original 100% if unset' })
 Write-Output "Resolve readback: $ResolveReadback"
 Write-Output "Title transitions: $(if ($TitleInProcessRestart) { 'same process/window' } else { 'diagnostic process relaunch' })"
 New-Item -ItemType Directory -Force "$ProjectRoot/reports" | Out-Null
-[pscustomobject]@{pid=$proc.Id;log=$logPath;started=[DateTime]::UtcNow.ToString('o');dof_strength=$DofStrength;debug_mission=$DebugMission;user_data_root=$taskUserRoot;resolve_readback=$ResolveReadback} |
+[pscustomobject]@{pid=$proc.Id;log=$logPath;started=[DateTime]::UtcNow.ToString('o');dof_strength=$(if ($PSBoundParameters.ContainsKey('DofStrength')) { $DofStrength } else { $null });debug_mission=$DebugMission;user_data_root=$taskUserRoot;resolve_readback=$ResolveReadback} |
     ConvertTo-Json | Set-Content "$ProjectRoot/reports/native-last-run.json" -Encoding utf8
 if ($Seconds -gt 0) {
     if (!$proc.WaitForExit($Seconds * 1000)) {

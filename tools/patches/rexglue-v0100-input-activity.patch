@@ -1,0 +1,87 @@
+diff --git a/include/rex/input/state_merge.h b/include/rex/input/state_merge.h
+--- a/include/rex/input/state_merge.h
++++ b/include/rex/input/state_merge.h
+@@ -27,6 +27,13 @@
+ 
+ bool IsNeutral(const X_INPUT_GAMEPAD& gamepad);
+ 
++// Source-aware host activity, independent of merged synthetic XInput state.
++void ResetInputActivity();
++void KeyboardMouseUsed(uint32_t user_index = 0);
++bool IsKeyboardMouseActive(uint32_t user_index = 0);
++void ObserveInputActivity(uint32_t user_index, DeviceId id, bool synthetic,
++                          const X_INPUT_GAMEPAD& state);
++
+ /// Tracks which device most recently produced real input, per guest user, so
+ /// button glyphs follow the pad in the player's hands.
+ class ActiveDeviceTracker {
+diff --git a/src/input/state_merge.cpp b/src/input/state_merge.cpp
+--- a/src/input/state_merge.cpp
++++ b/src/input/state_merge.cpp
+@@ -13,6 +13,9 @@
+ 
+ #include <algorithm>
+ #include <cstdlib>
++#include <atomic>
++#include <map>
++#include <mutex>
+ 
+ namespace rex::input {
+ 
+@@ -27,6 +30,44 @@
+ }
+ 
+ }  // namespace
++
++namespace {
++std::array<std::atomic<bool>, kMaxGuestUsers> keyboard_mouse{true, true, true, true};
++std::mutex activity_mutex;
++std::map<std::pair<uint32_t, DeviceId>, X_INPUT_GAMEPAD> previous_activity;
++}
++void ResetInputActivity() {
++  std::lock_guard lock(activity_mutex);
++  previous_activity.clear();
++  for (auto& active : keyboard_mouse) active.store(true);
++}
++void KeyboardMouseUsed(uint32_t user_index) {
++  if (user_index < kMaxGuestUsers) keyboard_mouse[user_index].store(true);
++}
++bool IsKeyboardMouseActive(uint32_t user_index) {
++  return user_index < kMaxGuestUsers && keyboard_mouse[user_index].load();
++}
++void ObserveInputActivity(uint32_t user_index, DeviceId id, bool synthetic,
++                          const X_INPUT_GAMEPAD& state) {
++  if (synthetic || user_index >= kMaxGuestUsers || id == DeviceId::kInvalid) return;
++  std::lock_guard lock(activity_mutex);
++  auto& previous = previous_activity[{user_index, id}];
++  auto axis = [](int16_t a, int16_t b) {
++    return std::abs(int(a)) >= kThumbDeadzone && std::abs(int(a) - int(b)) >= 512;
++  };
++  auto trigger = [](uint8_t a, uint8_t b) {
++    return a >= kTriggerThreshold && (b < kTriggerThreshold || std::abs(int(a)-int(b)) >= 2);
++  };
++  const bool changed = uint16_t(state.buttons) != uint16_t(previous.buttons) ||
++      trigger(state.left_trigger, previous.left_trigger) ||
++      trigger(state.right_trigger, previous.right_trigger) ||
++      axis(state.thumb_lx, previous.thumb_lx) || axis(state.thumb_ly, previous.thumb_ly) ||
++      axis(state.thumb_rx, previous.thumb_rx) || axis(state.thumb_ry, previous.thumb_ry);
++  if (!IsNeutral(state) && changed) keyboard_mouse[user_index].store(false);
++  // Keep a stable baseline so tiny stick changes accumulate rather than
++  // continuously stealing the device from a mouse; neutral drift never wins.
++  if (changed || IsNeutral(state)) previous = state;
++}
+ 
+ void MergeInto(X_INPUT_STATE& dst, const X_INPUT_STATE& src) {
+   dst.gamepad.buttons =
+diff --git a/src/input/input_system.cpp b/src/input/input_system.cpp
+--- a/src/input/input_system.cpp
++++ b/src/input/input_system.cpp
+@@ -234,6 +234,8 @@
+       continue;
+     }
+     active_devices_.Observe(user_index, id, state.gamepad);
++    if (const auto* info = DeviceInfoFor(id))
++      ObserveInputActivity(user_index, id, info->synthetic, state.gamepad);
+     if (!any) {
+       merged = state;
+       any = true;

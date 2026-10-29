@@ -4,10 +4,12 @@
 #include <cstring>
 
 REXCVAR_DEFINE_BOOL(cod3_skip_loading_movies, true, "Game",
-    "Allow Space or Enter to skip a briefing after its asset-loading wait");
+    "Allow Space or Enter to stop a briefing while level loading continues");
 
 REX_EXTERN(__imp__sub_824EEBA0);
 REX_EXTERN(__imp__sub_820E90F8);
+REX_EXTERN(__imp__sub_824EECF8);
+REX_EXTERN(__imp__sub_824D0528);
 
 namespace {
 enum class SkipState { Inactive, Ready, Requested };
@@ -21,6 +23,11 @@ uint32_t Load32(const uint8_t* base, uint32_t address) {
 }
 }
 
+bool Cod3MovieSkipAvailable() {
+  return REXCVAR_GET(cod3_skip_loading_movies) &&
+      skip_state.load(std::memory_order_acquire) == SkipState::Ready;
+}
+
 void ResetCod3MovieSkip() {
   skip_state.store(SkipState::Inactive, std::memory_order_release);
 }
@@ -29,6 +36,41 @@ bool RequestCod3MovieSkip() {
   if (!REXCVAR_GET(cod3_skip_loading_movies)) return false;
   auto expected = SkipState::Ready;
   return skip_state.compare_exchange_strong(expected, SkipState::Requested);
+}
+
+// Adapted from SirCarls/cod3_REcomp_ OnLoadingMovie, revision d54c1bb.
+// See licenses/SirCarls-COD_3_WAW-MIT.txt and docs/MOVIE_SKIP.md.
+REX_HOOK_RAW(sub_824EECF8) {
+  const bool playing = Load32(base, 0x82A2A24C) != 0;
+  if (!REXCVAR_GET(cod3_skip_loading_movies) || !playing) {
+    skip_state.store(SkipState::Inactive, std::memory_order_release);
+    __imp__sub_824EECF8(ctx, base);
+    return;
+  }
+  // Preserve an input request across callbacks; never arm outside playback.
+  auto inactive = SkipState::Inactive;
+  skip_state.compare_exchange_strong(inactive, SkipState::Ready);
+  auto requested = SkipState::Requested;
+  if (skip_state.compare_exchange_strong(requested, SkipState::Inactive)) {
+    // Isolated PPC call and ABI linkage space: the loader's registers survive.
+    rex::CallFrame stop(ctx);
+    stop.ctx.r1.u32 -= 0x70;
+    stop.ctx.r3.u64 = 1;
+    __imp__sub_824D0528(stop.ctx, base);
+    if (Load32(base, 0x82A2A24C) == 0) {
+      const auto manager = Load32(base, 0x82A2AB6C);
+      if (manager && Load32(base, manager + 0x350) == 0x824EECF8) {
+        const auto callback = __builtin_bswap32(uint32_t{0x82526240});
+        std::memcpy(base + manager + 0x350, &callback, sizeof(callback));
+      }
+      REXLOG_INFO("COD3_MOVIE_SKIP_ACCEPTED asset_wait_complete=false original_stop=true");
+      return;
+    }
+    REXLOG_WARN("COD3_MOVIE_SKIP_DEFERRED original_stop_kept_movie=true");
+  }
+  __imp__sub_824EECF8(ctx, base);
+  if (Load32(base, 0x82A2A24C) == 0)
+    skip_state.store(SkipState::Inactive, std::memory_order_release);
 }
 
 REX_HOOK_RAW(sub_824EEBA0) {

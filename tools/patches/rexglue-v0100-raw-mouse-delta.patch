@@ -1,0 +1,82 @@
+--- a/include/rex/input/mnk/mnk_input_driver.h
++++ b/include/rex/input/mnk/mnk_input_driver.h
+@@ -24,6 +24,11 @@
+ 
+ void SetMouseLookActive(bool active);
+ bool IsMouseLookActive();
++// Title-owned camera input. Driver keeps capture ownership independently of
++// the legacy mnk_mouse stick-conversion flag and buffers counts for usercmds.
++void SetRawMouseLook(bool enabled, bool emulate_stick = false);
++void TakeRawMouseDelta(float& dx, float& dy);
++void ClearRawMouseDelta();
+ 
+ class MnkInputDriver final : public InputDriver,
+                              public rex::ui::WindowInputListener,
+--- a/src/input/mnk/mnk_input_driver.cpp
++++ b/src/input/mnk/mnk_input_driver.cpp
+@@ -59,6 +59,33 @@
+ REXCVAR_DEFINE_STRING(keybind_guide, "", "Input/Keybinds/Controller", "Guide button");
+ 
+ namespace rex::input::mnk {
++namespace {
++std::mutex raw_mouse_mutex;
++bool raw_mouse_enabled = false;
++bool raw_mouse_stick = false;
++float raw_mouse_dx = 0, raw_mouse_dy = 0;
++bool RawMouseRequested() {
++  std::lock_guard lock(raw_mouse_mutex);
++  return raw_mouse_enabled;
++}
++}
++void SetRawMouseLook(bool enabled, bool emulate_stick) {
++  std::lock_guard lock(raw_mouse_mutex);
++  if (raw_mouse_enabled == enabled && raw_mouse_stick == emulate_stick) return;
++  raw_mouse_enabled = enabled;
++  raw_mouse_stick = emulate_stick;
++  raw_mouse_dx = raw_mouse_dy = 0;
++}
++void ClearRawMouseDelta() {
++  std::lock_guard lock(raw_mouse_mutex);
++  raw_mouse_dx = raw_mouse_dy = 0;
++}
++void TakeRawMouseDelta(float& dx, float& dy) {
++  std::lock_guard lock(raw_mouse_mutex);
++  dx = raw_mouse_dx; dy = raw_mouse_dy;
++  raw_mouse_dx = raw_mouse_dy = 0;
++}
++
+ 
+ namespace {
+ 
+@@ -261,7 +288,7 @@
+ 
+   // Mouse look is opt in. Without this gate, keyboard input alone would hide
+   // and lock the cursor, breaking the ImGui overlays.
+-  QueueMouseCaptureUpdate(IsEnabled() && REXCVAR_GET(mnk_mouse) && IsMouseLookActive() &&
++  QueueMouseCaptureUpdate(IsEnabled() && (REXCVAR_GET(mnk_mouse) || RawMouseRequested()) && IsMouseLookActive() &&
+                           has_focus_ && is_active());
+ 
+   if (!is_active() || !has_focus_) {
+@@ -331,11 +358,17 @@
+   if (IsBindPressed(key_down_, REXCVAR_GET(keybind_rstick_down)))
+     ry -= INT16_MAX;
+ 
+-  if (REXCVAR_GET(mnk_mouse) && IsMouseLookActive()) {
+-    double sensitivity = REXCVAR_GET(mnk_sensitivity);
+-    constexpr double kBaseScale = 200.0;
+-    rx += static_cast<int32_t>(double(mouse_dx_) * sensitivity * kBaseScale);
+-    ry += static_cast<int32_t>(double(-mouse_dy_) * sensitivity * kBaseScale);
++  if ((REXCVAR_GET(mnk_mouse) || RawMouseRequested()) && IsMouseLookActive()) {
++    std::lock_guard raw_lock(raw_mouse_mutex);
++    if (raw_mouse_enabled && !raw_mouse_stick) {
++      raw_mouse_dx += mouse_dx_;
++      raw_mouse_dy += mouse_dy_;
++    } else {
++      double sensitivity = REXCVAR_GET(mnk_sensitivity);
++      constexpr double kBaseScale = 200.0;
++      rx += static_cast<int32_t>(double(mouse_dx_) * sensitivity * kBaseScale);
++      ry += static_cast<int32_t>(double(-mouse_dy_) * sensitivity * kBaseScale);
++    }
+   }
+   // Drained unconditionally: deltas keep accumulating in OnMouseMove while the
+   // mouse is off, and toggling it on would otherwise dump the whole backlog

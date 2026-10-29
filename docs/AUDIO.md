@@ -1,5 +1,87 @@
 # Диагностика пространственного звука
 
+2026-10-23: пользователь проверил MG42 в открытой исправленной сборке и
+сообщил «Проблема ушла». Правка XMA output-valid принята по этому ручному
+сравнению. Повторной sample-exact записи нет; вывод ограничен исчезновением
+слышимого дефекта в проверенной сцене, не всеми звуками/миссиями. Callback
+pacing не менялся. Новый runtime hash и автоматические проверки ниже.
+
+2026-10-23: перенесена только XMA output-valid часть SirCarls patch 0061
+(reference main 6ae4839cc780664fd9a1b039173083f0dd4fc9c1). Новый
+`tools/patches/rexglue-v0100-xma-output-valid.patch` сохраняет valid при пустом
+проходе без записи PCM; если Consume действительно заполнил кольцо, valid
+сбрасывается, включая consume-only путь. StoreContextMerged сохраняется.
+Callback pacing и оптимизация decoder restart из 0066 не переносились.
+Уведомления MIT/BSD сохранены, источник указан в patch и THIRD_PARTY.md.
+
+Actual SDK regression `tests/xma_output_valid_test.cpp` без игровых данных:
+прежний runtime падает с «empty decode must not turn stale PCM into a full
+buffer» (exit 1); исправленный проходит 24 конфигурации / 72 прохода.
+Проверяются пустой/непустой ring, wrap offsets, exhausted/consume-only input,
+valid=0/1, неизменность PCM/offsets и повторные enable/work. Тест не декодирует
+сжатые пакеты и не доказывает корректность границы реального MG42.
+
+Команды: `tools/Build-TitleThreadDrain.ps1`, `tools/Build.ps1 -Stage Build`
+(strict codegen --ignore-stamp, native и corrected GPU),
+`tools/Build.ps1 -Stage Tests`: 10 Python + 13 native passed.
+Логи: logs/xma-valid-before-test.log, xma-valid-after-test.log,
+xma-valid-sdk-build.log, xma-valid-native-build.log, xma-valid-tests.log.
+Matched runtime SHA256: 4C1CED80020E97C813B1976CBE93726B20FB8CB825E345B035318F88F70B6702.
+Установлен согласованный context.h, поскольку layout XmaContext изменился.
+Запущен один cod3pc PID 23540 через обычное меню с прежним изолированным
+профилем nightd_glow_query_01. Ручное сравнение MG42 завершено: пользователь сообщил «Проблема ушла».
+Исправление SDK подтверждено тестом и принято в проверенной игровой сцене.
+
+2026-10-23: по просьбе пользователя повторно проверен свежий origin/main
+SirCarls (6ae4839cc780664fd9a1b039173083f0dd4fc9c1; fetch без новых коммитов).
+RELEASE/docs/REQUIREMENTS.md:206 прямо сохраняет сообщение «MG42 clips».
+В этой записи отмечен выполненным выбор output device, но не сам MG42.
+Отдельного source-backed заявления «MG42 исправлен» не найдено.
+
+COD3_AUDIO.md:181–236 и patch 0061 описывают исправленный повтор концов
+звуков: output-valid сбрасывался после пустого прохода без PCM, и FMOD читал
+старые 2 KB как новые. Вторая часть 0061 растягивает callback bursts до
+5.33 ms при достаточной очереди, чтобы mixer не отдавал повторный блок.
+Измерения автора были в Linux/PipeWire (1024 samples per device callback),
+а наш текущий Windows/Realtek stereo результат ещё не воспроизведён с patch.
+Наша Work() всё ещё содержит безусловный output_rb.empty() -> valid=0,
+поэтому это конкретное совпадение реализации, не доказательство причины MG42.
+Patch 0066 — оптимизация перезапуска декодера с сравнением PCM, без прямого
+заявления о ремонте MG42. LFE fix не должен влиять на наш stereo fold (LFE=0).
+
+Важное уточнение направления: COD3_AUDIO.md:208–211 сообщает, что в их
+трассе FMOD не задаёт аппаратные XMA loop fields: повтор реализован сбросом/
+seek/discard software context. Не следует принимать 255 в RIFF за runtime
+loop_count или менять hardware-loop логику на основании нашей записи.
+Приоритет следующей трассы: FMOD reset/pump, valid/offsets, PCM в конце волны,
+callback timing. Данные reference остаются leads, требуют своей проверки.
+
+2026-10-23: получена пользовательская запись «Запись 2026-10-23 092137.mp4»
+(Downloads), 7.5 s video / 7.744 s AAC audio, stereo 48 kHz. Private evidence:
+reports/mg42-20261023/analysis.json, recording.wav, envelope.csv и contact.png.
+На видео непрерывная очередь стационарного MG42 в Night Drop, затем пауза.
+В рабочем аудиоокне 1.5–5.4 s waveform autocorrelation имеет выраженный пик
+0.8998125 s (normalized correlation около 0.886). Повторяющиеся провалы
+огибающей около 2.23/3.13/4.03/4.93 s, низкие участки порядка 9–10 ms по
+порогу RMS 0.03; в миксе нет полного обрыва очереди. Максимум записи 0.232
+full scale, сэмплов >=0.999 нет. Анализ относится к AAC-записи конечного микса,
+не к sample-exact PCM движка или доказанной причине.
+
+Селективно извлечён принадлежащий пользователю MG42_FIRE_1ST_LOOP из обоих
+банков Island/Night Drop (последний index 428): metadata 37632 samples /48000
+=0.784 s, looped=true. ffmpeg декодирует 37760 samples; декодерный padding и
+игровой pitch нельзя игнорировать. Разница с повтором 0.9 s сама по себе НЕ
+доказывает 116 ms тишины или XMA restart. Прямое сравнение с исходным декодом
+пока не устанавливает точную волну/скорость, несмотря на подходящее имя.
+Извлечённые RIFF/PCM остаются в ignored reports, не для Git/публикации.
+
+Следующая проверка — связать повтор с оригинальным pump 823B80A8 и текущими
+XMA loop offsets/subframes, выдачей PCM и callback timing. Имеющийся обычный
+лог не содержит такой аудиотрассы. Семантика output_buffer_valid в Work и
+референсный patch 0061 остаются кандидатами, не принятым исправлением.
+Нового audio-патча по одной записи не применяли; повторная пользовательская
+запись для первого анализа не требуется.
+
 2026-10-21: пользователь также сообщает дребезг звука стационарного MG42
 при непрерывной стрельбе. Это отдельное воспроизведение, не доказанное
 следствие широкой центральной зоны. Проверить короткую/долгую очередь,

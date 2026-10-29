@@ -19,11 +19,21 @@ ReXGlue runtime and Xenos GPU backend; it does not launch an emulator process.
 - Resolve readback restores visibility checks for the tested lantern glows;
   fresh launch and menu/Continue have been checked with the `fast` preset.
 - Optional DoF strength is available; the 35% setting has been visually tested.
+- Mouse navigation works in the original menus. Native-style Video and Keys
+  pages support saved settings, a DoF slider/numeric entry, and action rebinding.
+- Direct raw mouse look, held mouse fire/aim, weapon switching by wheel,
+  grenades, melee and mounted MG42 controls have passed focused manual checks.
+  Bindings support five mouse buttons and both wheel directions.
+- Gameplay hints show assigned keys for supported actions. Keyboard/mouse
+  input temporarily disables aim assist while preserving the controller setting.
+- The tested sustained-MG42 audio loop no longer stutters with the XMA
+  output-valid correction.
 
 `default.xex`, `saint_lo.dll`, `island.dll`, and `nightd.dll` are currently recompiled.
 The third mission also loads with player control in manual testing;
 full third-mission completion remains unverified.
-Briefings can be skipped with Space or Enter after the original resource wait.
+Briefings can be dismissed immediately with Space or Enter and an on-screen
+skip hint; gameplay still waits for the original loading to finish.
 The standard launcher now keeps the same process and window during title
 transitions. Saint-Lo → Island, Island → Night Drop, repeated menu/Continue,
 input/audio and settings/windowed-mode retention have passed manual checks.
@@ -35,7 +45,10 @@ testing. Multiplayer is outside the initial scope.
 
 The PC integration goal is settings inside the game's own styled/localized menus,
 complete mouse and keyboard navigation, configurable actions and matching hints.
-These remain development work, not features claimed complete in this repository.
+The features above are implemented, but full PC integration remains unfinished:
+vehicle/QTE coverage, movement/stance hints and broader mixed-device testing
+are pending. Binoculars and hold-breath bindings are implemented but their
+dedicated manual checks are deferred.
 External implementation reviews and the isolated SirCarls comparison build are
 documented in [SIRCARLS_REVIEW.md](docs/SIRCARLS_REVIEW.md) and
 [SIRCARLS_BUILD.md](docs/SIRCARLS_BUILD.md); external build outputs are not distributed.
